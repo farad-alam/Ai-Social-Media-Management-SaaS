@@ -1,36 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CalendarIcon, ChevronLeft, ChevronRight, Clock, Heart, MessageCircle, TrendingUp } from "lucide-react"
-
-// Mock data for scheduled posts
-const scheduledPosts = [
-  {
-    id: 1,
-    image: "/instagram-fashion-post.png",
-    caption: "New collection dropping soon! Stay tuned for exclusive designs.",
-    scheduledFor: "2024-01-15 10:00 AM",
-    status: "scheduled",
-  },
-  {
-    id: 2,
-    image: "/instagram-food-post.png",
-    caption: "Delicious brunch ideas for your weekend. Which one would you try?",
-    scheduledFor: "2024-01-16 2:00 PM",
-    status: "scheduled",
-  },
-  {
-    id: 3,
-    image: "/instagram-post-travel.jpg",
-    caption: "Exploring hidden gems around the world. Where should we go next?",
-    scheduledFor: "2024-01-17 6:00 PM",
-    status: "scheduled",
-  },
-]
+import { getDashboardData } from "@/app/actions/dashboard"
 
 // Mock calendar data
 const calendarDays = Array.from({ length: 31 }, (_, i) => i + 1)
@@ -38,6 +14,33 @@ const currentMonth = "January 2024"
 
 export default function DashboardPage() {
   const [viewMode, setViewMode] = useState("month")
+  const [loading, setLoading] = useState(true)
+  const [posts, setPosts] = useState([])
+  const [stats, setStats] = useState({
+    totalPosts: 0,
+    engagement: "0",
+    comments: "0",
+    scheduled: 0
+  })
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await getDashboardData()
+        if (data.posts) {
+          setPosts(data.posts)
+        }
+        if (data.stats) {
+          setStats(data.stats)
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
 
   return (
     <DashboardLayout>
@@ -55,7 +58,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Total Posts</p>
               <TrendingUp className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">127</p>
+            <p className="text-3xl font-bold text-card-foreground">{stats.totalPosts}</p>
             <p className="text-xs text-muted-foreground mt-1">+12% from last month</p>
           </Card>
 
@@ -64,7 +67,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Engagement</p>
               <Heart className="w-4 h-4 text-accent" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">8.4K</p>
+            <p className="text-3xl font-bold text-card-foreground">{stats.engagement}</p>
             <p className="text-xs text-muted-foreground mt-1">+18% from last month</p>
           </Card>
 
@@ -73,7 +76,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Comments</p>
               <MessageCircle className="w-4 h-4 text-chart-3" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">1.2K</p>
+            <p className="text-3xl font-bold text-card-foreground">{stats.comments}</p>
             <p className="text-xs text-muted-foreground mt-1">+8% from last month</p>
           </Card>
 
@@ -82,7 +85,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Scheduled</p>
               <Clock className="w-4 h-4 text-chart-4" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">15</p>
+            <p className="text-3xl font-bold text-card-foreground">{stats.scheduled}</p>
             <p className="text-xs text-muted-foreground mt-1">Posts this month</p>
           </Card>
         </div>
@@ -163,14 +166,14 @@ export default function DashboardPage() {
         {/* Scheduled Posts */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-foreground">Upcoming Posts</h2>
+            <h2 className="text-xl font-semibold text-foreground">Recent & Upcoming Posts</h2>
             <Button variant="outline" className="border-border text-foreground bg-transparent">
               View All
             </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scheduledPosts.map((post) => (
+            {loading ? <p>Loading posts...</p> : posts.length === 0 ? <p className="text-muted-foreground">No posts yet.</p> : posts.map((post) => (
               <Card
                 key={post.id}
                 className="overflow-hidden bg-card border-border hover:border-primary/50 transition-all duration-300"

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/lib/supabase"
+import { createPost } from "@/app/actions/post"
 
 const suggestedHashtags = [
   "#instagram",
@@ -32,21 +35,78 @@ const suggestedHashtags = [
 
 export default function CreatePostPage() {
   const { toast } = useToast()
+  const router = useRouter()
   const [caption, setCaption] = useState("")
   const [selectedHashtags, setSelectedHashtags] = useState([])
   const [uploadedImage, setUploadedImage] = useState(null)
+  const [fileToUpload, setFileToUpload] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [scheduleDate, setScheduleDate] = useState("")
   const [scheduleTime, setScheduleTime] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleImageUpload = (e) => {
+  // Utility to compress image using Canvas
+  const compressImage = async (file) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.src = URL.createObjectURL(file)
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 1920
+        const scaleSize = MAX_WIDTH / img.width
+        const width = scaleSize < 1 ? MAX_WIDTH : img.width
+        const height = scaleSize < 1 ? img.height * scaleSize : img.height
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile)
+          } else {
+            reject(new Error('Canvas is empty'))
+          }
+        }, 'image/jpeg', 0.7) // 0.7 quality
+      }
+      img.onerror = (error) => reject(error)
+    })
+  }
+
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setUploadedImage(reader.result)
+      if (file.type.startsWith('image/')) {
+        try {
+          // Optimistic UI update
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            setUploadedImage(reader.result)
+          }
+          reader.readAsDataURL(file)
+
+          // Compress in background
+          const compressed = await compressImage(file)
+          setFileToUpload(compressed)
+          toast({ title: "Image optimized", description: "Image compressed for faster upload." })
+        } catch (error) {
+          console.error("Compression failed", error)
+          setFileToUpload(file) // Fallback to original
+        }
+      } else {
+        // Video or other
+        setFileToUpload(file)
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setUploadedImage(reader.result)
+        }
+        reader.readAsDataURL(file)
       }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -75,11 +135,61 @@ export default function CreatePostPage() {
     }
   }
 
-  const handleSchedulePost = () => {
-    toast({
-      title: "Post Scheduled!",
-      description: `Your post will be published on ${scheduleDate} at ${scheduleTime}`,
-    })
+  const handleSchedulePost = async () => {
+    if (isSubmitting) return
+
+    if (!fileToUpload) {
+      toast({ title: "Error", description: "Please upload an image first", variant: "destructive" })
+      return
+    }
+    if (!caption) {
+      toast({ title: "Error", description: "Please write a caption", variant: "destructive" })
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      // 1. Upload to Supabase
+      const filename = `${Date.now()}-${fileToUpload.name}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(filename, fileToUpload)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('posts')
+        .getPublicUrl(filename)
+
+      // 2. Create Post in DB
+      const formData = new FormData()
+      formData.append('caption', caption + " " + selectedHashtags.join(" "))
+      formData.append('imageUrl', publicUrl)
+      if (scheduleDate) formData.append('scheduleDate', scheduleDate)
+      if (scheduleTime) formData.append('scheduleTime', scheduleTime)
+
+      const result = await createPost(formData)
+
+      if (result.error) {
+        toast({ title: "Error", description: result.error, variant: "destructive" })
+        setIsSubmitting(false)
+      } else {
+        toast({
+          title: "Success! Post Created",
+          description: "Your post has been scheduled. Redirecting to dashboard...",
+          variant: "default"
+        })
+        // Delay redirect to allow toast to be seen
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 2000)
+      }
+
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "Failed to create post. Check console.", variant: "destructive" })
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -120,7 +230,10 @@ export default function CreatePostPage() {
                     variant="destructive"
                     size="icon"
                     className="absolute top-2 right-2"
-                    onClick={() => setUploadedImage(null)}
+                    onClick={() => {
+                      setUploadedImage(null)
+                      setFileToUpload(null)
+                    }}
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -164,11 +277,10 @@ export default function CreatePostPage() {
                   <Badge
                     key={hashtag}
                     variant={selectedHashtags.includes(hashtag) ? "default" : "outline"}
-                    className={`cursor-pointer transition-all ${
-                      selectedHashtags.includes(hashtag)
-                        ? "bg-primary text-primary-foreground"
-                        : "border-border text-foreground hover:border-primary/50"
-                    }`}
+                    className={`cursor-pointer transition-all ${selectedHashtags.includes(hashtag)
+                      ? "bg-primary text-primary-foreground"
+                      : "border-border text-foreground hover:border-primary/50"
+                      }`}
                     onClick={() => toggleHashtag(hashtag)}
                   >
                     {hashtag}
@@ -284,8 +396,9 @@ export default function CreatePostPage() {
               <Button
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={handleSchedulePost}
+                disabled={isSubmitting}
               >
-                Schedule Post
+                {isSubmitting ? "Scheduling..." : "Schedule Post"}
               </Button>
             </div>
           </div>

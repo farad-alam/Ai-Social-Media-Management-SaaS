@@ -1,0 +1,63 @@
+'use server'
+
+import { auth, currentUser } from '@clerk/nextjs/server'
+import { prisma } from '@/lib/prisma'
+import { revalidatePath } from 'next/cache'
+
+export async function createPost(formData: FormData) {
+    const user = await currentUser()
+    const { userId } = await auth()
+
+    if (!userId || !user) {
+        return { error: 'Unauthorized' }
+    }
+
+    const caption = formData.get('caption') as string
+    const imageUrl = formData.get('imageUrl') as string
+    const scheduleDate = formData.get('scheduleDate') as string
+    const scheduleTime = formData.get('scheduleTime') as string
+
+    if (!caption || !imageUrl) {
+        return { error: 'Missing required fields' }
+    }
+
+    // Combine date and time if provided
+    let scheduledAt = null
+    let status = 'DRAFT'
+
+    if (scheduleDate && scheduleTime) {
+        scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`)
+        status = 'SCHEDULED'
+    }
+
+    try {
+        // 1. Ensure User exists in our DB (sync with Clerk)
+        const email = user.emailAddresses[0]?.emailAddress || "no-email@example.com"
+
+        await prisma.user.upsert({
+            where: { id: userId },
+            update: { email }, // Update email if it changed in Clerk
+            create: {
+                id: userId,
+                email,
+            }
+        })
+
+        // 2. Create Post
+        await prisma.post.create({
+            data: {
+                userId,
+                caption,
+                imageUrls: [imageUrl],
+                scheduledAt,
+                status,
+            }
+        })
+
+        revalidatePath('/dashboard')
+        return { success: true }
+    } catch (error) {
+        console.error('Create Post Error:', error)
+        return { error: 'Failed to create post' }
+    }
+}

@@ -77,47 +77,54 @@ export const metadata = {
 };
 
 
+import { ClerkProvider } from '@clerk/nextjs'
+
+import { Toaster } from "@/components/ui/toaster"
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: "SocialFlow",
-              url: "https://social-flowai.vercel.app",
-              applicationCategory: "Social Media Management",
-              operatingSystem: "Web",
-              description:
-                "AI-powered platform for managing, scheduling, and generating social media content.",
-              image: "https://social-flowai.vercel.app/og-image.png",
-              author: {
-                "@type": "Organization",
-                name: "SocialFlow AI",
-              },
-              aggregateRating: {
-                "@type": "AggregateRating",
-                ratingValue: "4.9",
-                reviewCount: "128",
-              },
-            }),
-          }}
-        />
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "SoftwareApplication",
+                name: "SocialFlow",
+                url: "https://social-flowai.vercel.app",
+                applicationCategory: "Social Media Management",
+                operatingSystem: "Web",
+                description:
+                  "AI-powered platform for managing, scheduling, and generating social media content.",
+                image: "https://social-flowai.vercel.app/og-image.png",
+                author: {
+                  "@type": "Organization",
+                  name: "SocialFlow AI",
+                },
+                aggregateRating: {
+                  "@type": "AggregateRating",
+                  ratingValue: "4.9",
+                  reviewCount: "128",
+                },
+              }),
+            }}
+          />
 
-        {/* <link rel="canonical" href="https://bismillah-auto.netlify.app" /> */}
-        <link rel="icon" type="image/svg+xml" href="/favicon.png" />
-      </head>
-      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        {children}
-        <Analytics />
-      </body>
-    </html>
+          {/* <link rel="canonical" href="https://bismillah-auto.netlify.app" /> */}
+          <link rel="icon" type="image/svg+xml" href="/favicon.png" />
+        </head>
+        <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+          {children}
+          <Analytics />
+          <Toaster />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
