@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { CalendarView } from "@/components/dashboard/calendar-view"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -91,77 +92,12 @@ export default function DashboardPage() {
         </div>
 
         {/* Calendar Section */}
-        <Card className="p-6 bg-card border-border">
-          <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-semibold text-card-foreground">Content Calendar</h2>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-secondary rounded-lg p-1">
-                <Button
-                  variant={viewMode === "month" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("month")}
-                  className={viewMode === "month" ? "bg-primary text-primary-foreground" : ""}
-                >
-                  Month
-                </Button>
-                <Button
-                  variant={viewMode === "week" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("week")}
-                  className={viewMode === "week" ? "bg-primary text-primary-foreground" : ""}
-                >
-                  Week
-                </Button>
-                <Button
-                  variant={viewMode === "day" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("day")}
-                  className={viewMode === "day" ? "bg-primary text-primary-foreground" : ""}
-                >
-                  Day
-                </Button>
-              </div>
-            </div>
           </div>
-
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-card-foreground">{currentMonth}</h3>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="border-border bg-transparent">
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="border-border bg-transparent">
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-muted-foreground p-2">
-                {day}
-              </div>
-            ))}
-            {calendarDays.map((day) => (
-              <div
-                key={day}
-                className="aspect-square border border-border rounded-lg p-2 hover:border-primary/50 transition-colors cursor-pointer"
-              >
-                <div className="text-sm text-card-foreground">{day}</div>
-                {day === 15 && (
-                  <div className="mt-1">
-                    <div className="w-2 h-2 bg-primary rounded-full" />
-                  </div>
-                )}
-                {day === 16 && (
-                  <div className="mt-1">
-                    <div className="w-2 h-2 bg-accent rounded-full" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
+          <CalendarView posts={posts} />
+        </div>
 
         {/* Scheduled Posts */}
         <div>
