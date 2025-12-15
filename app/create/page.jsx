@@ -14,6 +14,8 @@ import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X } from "lucide-re
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { createPost } from "@/app/actions/post"
+import { generateCaption } from "@/app/actions/ai"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const suggestedHashtags = [
   "#instagram",
@@ -37,6 +39,8 @@ export default function CreatePostPage() {
   const { toast } = useToast()
   const router = useRouter()
   const [caption, setCaption] = useState("")
+  const [topic, setTopic] = useState("")
+  const [tone, setTone] = useState("professional")
   const [selectedHashtags, setSelectedHashtags] = useState([])
   const [uploadedImage, setUploadedImage] = useState(null)
   const [fileToUpload, setFileToUpload] = useState(null)
@@ -110,21 +114,22 @@ export default function CreatePostPage() {
     }
   }
 
-  const generateAICaption = () => {
-    const aiCaptions = [
-      "Embracing the journey, one step at a time. What's your next adventure?",
-      "Creating moments that matter. Share your story with us!",
-      "Life is better when you're laughing. What made you smile today?",
-      "Chasing dreams and making memories. Join us on this incredible journey!",
-      "Finding beauty in the everyday. What inspires you?",
-    ]
-    const randomCaption = aiCaptions[Math.floor(Math.random() * aiCaptions.length)]
-    setCaption(randomCaption)
+  const handleGenerateCaption = async () => {
+    if (!topic) {
+      toast({ title: "Topic Required", description: "Please enter a topic or title for the AI.", variant: "destructive" })
+      return
+    }
 
-    toast({
-      title: "AI Caption Generated",
-      description: "Your caption has been created successfully!",
-    })
+    setIsSubmitting(true)
+    const result = await generateCaption(topic, tone)
+    setIsSubmitting(false)
+
+    if (result.error) {
+      toast({ title: "Error", description: result.error, variant: "destructive" })
+    } else {
+      setCaption(result.caption)
+      toast({ title: "Magic!", description: "AI generated your caption successfully." })
+    }
   }
 
   const toggleHashtag = (hashtag) => {
@@ -241,19 +246,48 @@ export default function CreatePostPage() {
               )}
             </Card>
 
-            {/* Caption */}
+            {/* Caption & AI */}
             <Card className="p-6 bg-card border-border">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-card-foreground">Caption</h2>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={generateAICaption}
+                  onClick={handleGenerateCaption}
+                  disabled={isSubmitting}
                   className="border-border text-foreground bg-transparent"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  AI Generate
+                  {isSubmitting ? "Generating..." : "AI Generate"}
                 </Button>
+              </div>
+
+              <div className="grid gap-4 mb-4">
+                <div>
+                  <Label className="mb-2 block">Topic / Title</Label>
+                  <Input
+                    placeholder="e.g. New Summer Collection Launch"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    className="bg-background border-input text-foreground"
+                  />
+                </div>
+
+                <div>
+                  <Label className="mb-2 block">Tone</Label>
+                  <Select value={tone} onValueChange={setTone}>
+                    <SelectTrigger className="bg-background border-input text-foreground">
+                      <SelectValue placeholder="Select tone" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="professional">Professional</SelectItem>
+                      <SelectItem value="funny">Funny</SelectItem>
+                      <SelectItem value="casual">Casual</SelectItem>
+                      <SelectItem value="inspirational">Inspirational</SelectItem>
+                      <SelectItem value="sales">Sales / Promotional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <Textarea
@@ -266,12 +300,14 @@ export default function CreatePostPage() {
             </Card>
 
             {/* Hashtags */}
+            {/*
             <Card className="p-6 bg-card border-border">
               <div className="flex items-center gap-2 mb-4">
                 <Hash className="w-5 h-5 text-primary" />
                 <h2 className="text-lg font-semibold text-card-foreground">Hashtag Suggestions</h2>
               </div>
 
+              
               <div className="flex flex-wrap gap-2">
                 {suggestedHashtags.map((hashtag) => (
                   <Badge
@@ -287,6 +323,7 @@ export default function CreatePostPage() {
                   </Badge>
                 ))}
               </div>
+              
 
               {selectedHashtags.length > 0 && (
                 <div className="mt-4 p-3 bg-secondary rounded-lg">
@@ -294,6 +331,7 @@ export default function CreatePostPage() {
                 </div>
               )}
             </Card>
+            */}
           </div>
 
           {/* Right Column - Schedule & Preview */}
