@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { SignOutButton, useUser } from "@clerk/nextjs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ const navigation = [
 
 export function DashboardLayout({ children }) {
   const pathname = usePathname()
+  const { user, isLoaded } = useUser()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
 
@@ -98,12 +100,18 @@ export function DashboardLayout({ children }) {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-sidebar-accent transition-colors">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">JD</AvatarFallback>
+                    <AvatarImage src={user?.imageUrl} />
+                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground">
+                      {user?.firstName?.charAt(0) || "U"}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-medium text-sidebar-foreground">John Doe</p>
-                    <p className="text-xs text-muted-foreground">john@example.com</p>
+                    <p className="text-sm font-medium text-sidebar-foreground">
+                      {isLoaded ? user?.fullName || "User" : "Loading..."}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {isLoaded ? user?.primaryEmailAddress?.emailAddress : "..."}
+                    </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -130,12 +138,12 @@ export function DashboardLayout({ children }) {
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Link href="/" className="flex items-center w-full text-destructive">
+                <SignOutButton redirectUrl="/">
+                  <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
                     <LogOut className="w-4 h-4 mr-2" />
                     Log out
-                  </Link>
-                </DropdownMenuItem>
+                  </DropdownMenuItem>
+                </SignOutButton>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
