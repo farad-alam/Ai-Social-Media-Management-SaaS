@@ -108,33 +108,38 @@ export default function DashboardPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? <p>Loading posts...</p> : posts.length === 0 ? <p className="text-muted-foreground">No posts yet.</p> : posts.map((post) => (
-              <Card
-                key={post.id}
-                className="overflow-hidden bg-card border-border hover:border-primary/50 transition-all duration-300"
-              >
-                <div className="aspect-square relative">
+          <div className="grid grid-cols-3 gap-0.5 md:gap-1">
+            {loading ? (
+              <p className="col-span-3 text-center py-10">Loading posts...</p>
+            ) : posts.length === 0 ? (
+              <p className="text-muted-foreground col-span-3 text-center py-10">No posts yet.</p>
+            ) : (
+              posts.map((post) => (
+                <div
+                  key={post.id}
+                  className="relative aspect-[3/4] group cursor-pointer bg-muted overflow-hidden"
+                >
                   <img
                     src={post.image || "/placeholder.svg"}
                     alt="Post preview"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                </div>
-                <div className="p-4">
-                  <p className="text-sm text-card-foreground mb-3 line-clamp-2">{post.caption}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <CalendarIcon className="w-4 h-4" />
-                      <span>{post.scheduledFor}</span>
+                  {/* Instagram-style Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                    <div className="flex gap-6">
+                      <div className="flex items-center gap-1">
+                        <Heart className="w-6 h-6 fill-white" />
+                        <span className="font-bold text-sm">0</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MessageCircle className="w-6 h-6 fill-white" />
+                        <span className="font-bold text-sm">0</span>
+                      </div>
                     </div>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                      {post.status}
-                    </Badge>
                   </div>
                 </div>
-              </Card>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
