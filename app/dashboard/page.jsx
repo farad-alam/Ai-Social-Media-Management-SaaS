@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState("month")
   const [loading, setLoading] = useState(true)
   const [posts, setPosts] = useState([])
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [stats, setStats] = useState({
     totalPosts: 0,
     engagement: "0",
@@ -41,7 +42,7 @@ export default function DashboardPage() {
       }
     }
     loadData()
-  }, [])
+  }, [refreshTrigger])
 
   return (
     <DashboardLayout>
@@ -96,7 +97,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-semibold text-card-foreground">Content Calendar</h2>
           </div>
-          <CalendarView posts={posts} />
+          <CalendarView posts={posts} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
         </div>
 
         {/* Scheduled Posts */}
@@ -110,9 +111,9 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-3 gap-0.5 md:gap-1">
             {loading ? (
-              <p className="col-span-3 text-center py-10">Loading posts...</p>
+              <p className="col-span-full text-center py-10">Loading posts...</p>
             ) : posts.length === 0 ? (
-              <p className="text-muted-foreground col-span-3 text-center py-10">No posts yet.</p>
+              <p className="text-muted-foreground col-span-full text-center py-10">No posts yet.</p>
             ) : (
               posts.map((post) => (
                 <div
