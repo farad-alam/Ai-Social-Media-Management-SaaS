@@ -61,3 +61,27 @@ export async function createPost(formData: FormData) {
         return { error: 'Failed to create post' }
     }
 }
+
+export async function deletePost(postId: string) {
+    const { userId } = await auth()
+
+    if (!userId) {
+        return { error: 'Unauthorized' }
+    }
+
+    try {
+        // Delete post only if user owns it
+        await prisma.post.delete({
+            where: {
+                id: postId,
+                userId // Ensure user owns the post
+            }
+        })
+
+        revalidatePath('/dashboard')
+        return { success: true }
+    } catch (error) {
+        console.error('Delete Post Error:', error)
+        return { error: 'Failed to delete post' }
+    }
+}
