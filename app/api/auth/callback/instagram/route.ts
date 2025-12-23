@@ -18,11 +18,11 @@ export async function GET(request: Request) {
     const error = searchParams.get('error');
 
     if (error) {
-        return NextResponse.redirect(new URL(`/settings?error=${error}`, request.url));
+        return NextResponse.redirect(new URL(`/connect-instagram?error=${error}`, request.url));
     }
 
     if (!code) {
-        return NextResponse.redirect(new URL('/settings?error=no_code', request.url));
+        return NextResponse.redirect(new URL('/connect-instagram?error=no_code', request.url));
     }
 
     try {
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
         const accountDetails = await InstagramClient.getInstagramAccountId(longToken);
 
         if (!accountDetails) {
-            return NextResponse.redirect(new URL('/settings?error=no_instagram_account_found', request.url));
+            return NextResponse.redirect(new URL('/connect-instagram?error=no_instagram_account_found', request.url));
         }
 
         // 4. Get Profile Picture & Username (Optional, but nice to have)
@@ -69,10 +69,10 @@ export async function GET(request: Request) {
             }
         });
 
-        return NextResponse.redirect(new URL('/settings?success=instagram_connected', request.url));
+        return NextResponse.redirect(new URL('/connect-instagram?success=instagram_connected', request.url));
 
     } catch (err: any) {
         console.error("Instagram Auth Error:", err);
-        return NextResponse.redirect(new URL(`/settings?error=${encodeURIComponent(err.message)}`, request.url));
+        return NextResponse.redirect(new URL(`/connect-instagram?error=${encodeURIComponent(err.message)}`, request.url));
     }
 }

@@ -1,33 +1,18 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/dashboard/calendar-view"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { CalendarIcon, ChevronLeft, ChevronRight, Clock, Heart, MessageCircle, TrendingUp, X, Trash2 } from "lucide-react"
+import { Heart, MessageCircle, TrendingUp, Clock } from "lucide-react"
 import { getDashboardData } from "@/app/actions/dashboard"
-import { deletePost } from "@/app/actions/post"
-import { useToast } from "@/hooks/use-toast"
-
-// Mock calendar data
-const calendarDays = Array.from({ length: 31 }, (_, i) => i + 1)
-const currentMonth = "January 2024"
 
 export default function DashboardPage() {
-  const { toast } = useToast()
-  const [viewMode, setViewMode] = useState("month")
   const [loading, setLoading] = useState(true)
   const [posts, setPosts] = useState([])
   const [refreshTrigger, setRefreshTrigger] = useState(0)
-  const [previewPost, setPreviewPost] = useState(null)
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const [deletePostId, setDeletePostId] = useState(null)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [stats, setStats] = useState({
     totalPosts: 0,
     engagement: "0",
@@ -53,62 +38,6 @@ export default function DashboardPage() {
     }
     loadData()
   }, [refreshTrigger])
-
-  const handlePostClick = (post) => {
-    setPreviewPost(post)
-    setIsPreviewOpen(true)
-  }
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return "Not scheduled"
-    const date = new Date(dateString)
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      SCHEDULED: { label: "Scheduled", className: "bg-blue-500 text-white" },
-      DRAFT: { label: "Draft", className: "bg-gray-500 text-white" },
-      PUBLISHED: { label: "Published", className: "bg-green-500 text-white" }
-    }
-    return statusConfig[status] || statusConfig.DRAFT
-  }
-
-  const handleDeleteClick = (e, postId) => {
-    e.stopPropagation() // Prevent opening preview modal
-    setDeletePostId(postId)
-    setIsDeleteDialogOpen(true)
-  }
-
-  const handleConfirmDelete = async () => {
-    if (!deletePostId) return
-
-    setIsDeleting(true)
-    const result = await deletePost(deletePostId)
-    setIsDeleting(false)
-
-    if (result.error) {
-      toast({
-        title: "Error",
-        description: result.error,
-        variant: "destructive"
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Post deleted successfully."
-      })
-      setIsDeleteDialogOpen(false)
-      setDeletePostId(null)
-      setRefreshTrigger(prev => prev + 1)
-    }
-  }
 
   return (
     <DashboardLayout>
@@ -162,140 +91,14 @@ export default function DashboardPage() {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-semibold text-card-foreground">Content Calendar</h2>
+            <Link href="/all-posts">
+              <Button variant="outline" className="border-border text-foreground bg-transparent">
+                View All Posts
+              </Button>
+            </Link>
           </div>
           <CalendarView posts={posts} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
         </div>
-
-        {/* Scheduled Posts */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-foreground">Recent & Upcoming Posts</h2>
-            <Button variant="outline" className="border-border text-foreground bg-transparent">
-              View All
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-0.5 md:gap-1">
-            {loading ? (
-              <p className="col-span-full text-center py-10">Loading posts...</p>
-            ) : posts.length === 0 ? (
-              <p className="text-muted-foreground col-span-full text-center py-10">No posts yet.</p>
-            ) : (
-              posts.map((post) => {
-                const statusBadge = getStatusBadge(post.status)
-                return (
-                  <div
-                    key={post.id}
-                    className="relative aspect-[3/4] group cursor-pointer bg-muted overflow-hidden"
-                    onClick={() => handlePostClick(post)}
-                  >
-                    <img
-                      src={post.imageUrls?.[0] || "/placeholder.svg"}
-                      alt="Post preview"
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-
-
-                    {/* Hover Overlay with Status */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {/* Status Badge & Time - Top Left */}
-                      <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
-                        <Badge className={`${statusBadge.className}`}>
-                          {statusBadge.label}
-                        </Badge>
-                        <span className="text-[10px] text-white bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-sm">
-                          {formatDateTime(post.scheduledAt || post.createdAt)}
-                        </span>
-                      </div>
-
-                      {/* Delete Icon - Top Right */}
-                      <button
-                        onClick={(e) => handleDeleteClick(e, post.id)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full transition-colors backdrop-blur-sm z-10"
-                        title="Delete Post"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-white" />
-                      </button>
-
-                      {/* Center Content (Engagement) */}
-                      <div className="absolute inset-0 flex items-center justify-center text-white p-4 pointer-events-none">
-                        <div className="flex gap-6">
-                          <div className="flex items-center gap-1">
-                            <Heart className="w-5 h-5 fill-white" />
-                            <span className="font-bold text-sm">0</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MessageCircle className="w-5 h-5 fill-white" />
-                            <span className="font-bold text-sm">0</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Preview Modal */}
-        <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Post Preview</DialogTitle>
-            </DialogHeader>
-            {previewPost && (
-              <div className="space-y-4 overflow-y-auto pr-2">
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                  <img
-                    src={previewPost.imageUrls?.[0] || "/placeholder.svg"}
-                    alt="Post preview"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge className={`${getStatusBadge(previewPost.status).className}`}>
-                      {getStatusBadge(previewPost.status).label}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {formatDateTime(previewPost.scheduledAt || previewPost.createdAt)}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Caption</h3>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {previewPost.caption}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Post</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this post? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
-                className="bg-red-500 hover:bg-red-600"
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </DashboardLayout>
   )

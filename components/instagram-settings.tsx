@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Instagram, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { disconnectInstagram } from "@/app/actions/instagram"
 
@@ -60,9 +61,18 @@ export function InstagramSettings({ initialStatus }: InstagramSettingsProps) {
             <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-secondary rounded-lg">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737] rounded-lg flex items-center justify-center">
-                            <Instagram className="w-6 h-6 text-white" />
-                        </div>
+                        {status.isConnected && status.picture ? (
+                            <Avatar className="w-12 h-12 rounded-lg border-2 border-accent">
+                                <AvatarImage src={status.picture} alt={status.username || "Instagram Profile"} className="object-cover" />
+                                <AvatarFallback className="bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737] text-white rounded-lg">
+                                    <Instagram className="w-6 h-6" />
+                                </AvatarFallback>
+                            </Avatar>
+                        ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-[#833AB4] via-[#FD1D1D] to-[#F77737] rounded-lg flex items-center justify-center">
+                                <Instagram className="w-6 h-6 text-white" />
+                            </div>
+                        )}
                         <div>
                             <p className="font-medium text-card-foreground">Instagram Account</p>
                             <div className="flex items-center gap-2 mt-1">

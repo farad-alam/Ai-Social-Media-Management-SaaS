@@ -12,5 +12,12 @@ export const config = {
 }
 
 export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth()
+
+  // If user is logged in and trying to access the landing page, redirect to dashboard
+  if (userId && req.nextUrl.pathname === '/') {
+    return Response.redirect(new URL('/dashboard', req.url))
+  }
+
   if (isProtectedRoute(req)) await auth.protect()
 })

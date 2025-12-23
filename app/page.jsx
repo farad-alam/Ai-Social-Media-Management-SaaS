@@ -13,8 +13,11 @@ import {
   Share2,
   TrendingUp,
 } from "lucide-react"
+import { auth } from "@clerk/nextjs/server"
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth()
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -28,16 +31,26 @@ export default function LandingPage() {
               <span className="text-xl font-bold instagram-gradient-text">SocialFlow</span>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/signin">
-                <Button variant="ghost" className="text-foreground">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button className="instagram-gradient text-white hover:opacity-90 transition-opacity">
-                  Get Started
-                </Button>
-              </Link>
+              {userId ? (
+                <Link href="/dashboard">
+                  <Button className="instagram-gradient text-white hover:opacity-90 transition-opacity">
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/signin">
+                    <Button variant="ghost" className="text-foreground">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button className="instagram-gradient text-white hover:opacity-90 transition-opacity">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -87,23 +100,36 @@ export default function LandingPage() {
             our intuitive platform.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/signup">
-              <Button
-                size="lg"
-                className="instagram-gradient text-white hover:opacity-90 transition-opacity text-lg px-8 shadow-lg shadow-purple-500/30"
-              >
-                Start Free Trial
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-lg px-8 border-purple-500/30 text-foreground hover:bg-purple-500/10 bg-transparent backdrop-blur-sm"
-              >
-                View Demo
-              </Button>
-            </Link>
+            {userId ? (
+              <Link href="/dashboard">
+                <Button
+                  size="lg"
+                  className="instagram-gradient text-white hover:opacity-90 transition-opacity text-lg px-8 shadow-lg shadow-purple-500/30"
+                >
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/signup">
+                  <Button
+                    size="lg"
+                    className="instagram-gradient text-white hover:opacity-90 transition-opacity text-lg px-8 shadow-lg shadow-purple-500/30"
+                  >
+                    Start Free Trial
+                  </Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="text-lg px-8 border-purple-500/30 text-foreground hover:bg-purple-500/10 bg-transparent backdrop-blur-sm"
+                  >
+                    View Demo
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -210,12 +236,12 @@ export default function LandingPage() {
             <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
               Join thousands of creators and businesses using SocialFlow to grow their presence
             </p>
-            <Link href="/signup">
+            <Link href={userId ? "/dashboard" : "/signup"}>
               <Button
                 size="lg"
                 className="bg-white text-purple-600 hover:bg-white/90 text-lg px-8 shadow-lg font-semibold"
               >
-                Get Started Free
+                {userId ? "Go to Dashboard" : "Get Started Free"}
               </Button>
             </Link>
           </div>

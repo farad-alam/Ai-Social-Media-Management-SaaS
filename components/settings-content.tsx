@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { User, Palette, Bell, Lock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { InstagramSettings } from "@/components/instagram-settings"
 
 export default function SettingsClient({ instagramStatus }) {
     const { toast } = useToast()
@@ -133,9 +132,6 @@ export default function SettingsClient({ instagramStatus }) {
                         </Button>
                     </div>
                 </Card>
-
-                {/* Instagram Connection */}
-                <InstagramSettings initialStatus={instagramStatus} />
 
                 {/* Appearance */}
                 <Card className="p-6 bg-card border-border">

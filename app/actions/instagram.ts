@@ -43,7 +43,7 @@ export async function disconnectInstagram() {
         await prisma.account.deleteMany({
             where: { userId }
         })
-        revalidatePath('/settings')
+        revalidatePath('/connect-instagram')
         return { success: true }
     } catch (error) {
         return { error: "Failed to disconnect" }
