@@ -6,7 +6,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/dashboard/calendar-view"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, MessageCircle, TrendingUp, Clock } from "lucide-react"
+import { Heart, MessageCircle, TrendingUp, Clock, CheckCircle2, FileEdit, Grid3X3 } from "lucide-react"
 import { getDashboardData } from "@/app/actions/dashboard"
 
 export default function DashboardPage() {
@@ -15,9 +15,9 @@ export default function DashboardPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [stats, setStats] = useState({
     totalPosts: 0,
-    engagement: "0",
-    comments: "0",
-    scheduled: 0
+    published: 0,
+    scheduled: 0,
+    drafts: 0
   })
 
   useEffect(() => {
@@ -49,41 +49,41 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-6 bg-card border-border">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-6 bg-card border-border hover:border-primary/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Total Posts</p>
-              <TrendingUp className="w-4 h-4 text-primary" />
+              <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Posts</p>
+              <Grid3X3 className="w-5 h-5 text-primary" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">{stats.totalPosts}</p>
-            <p className="text-xs text-muted-foreground mt-1">+12% from last month</p>
+            <p className="text-4xl font-bold text-card-foreground">{stats.totalPosts}</p>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Lifetime content count</p>
           </Card>
 
-          <Card className="p-6 bg-card border-border">
+          <Card className="p-6 bg-card border-border hover:border-green-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Engagement</p>
-              <Heart className="w-4 h-4 text-accent" />
+              <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Published</p>
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">{stats.engagement}</p>
-            <p className="text-xs text-muted-foreground mt-1">+18% from last month</p>
+            <p className="text-4xl font-bold text-card-foreground">{stats.published}</p>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Successfully posted</p>
           </Card>
 
-          <Card className="p-6 bg-card border-border">
+          <Card className="p-6 bg-card border-border hover:border-blue-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Comments</p>
-              <MessageCircle className="w-4 h-4 text-chart-3" />
+              <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Scheduled</p>
+              <Clock className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">{stats.comments}</p>
-            <p className="text-xs text-muted-foreground mt-1">+8% from last month</p>
+            <p className="text-4xl font-bold text-card-foreground">{stats.scheduled}</p>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Ready for future</p>
           </Card>
 
-          <Card className="p-6 bg-card border-border">
+          <Card className="p-6 bg-card border-border hover:border-orange-500/50 transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Scheduled</p>
-              <Clock className="w-4 h-4 text-chart-4" />
+              <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Drafts</p>
+              <FileEdit className="w-5 h-5 text-orange-500" />
             </div>
-            <p className="text-3xl font-bold text-card-foreground">{stats.scheduled}</p>
-            <p className="text-xs text-muted-foreground mt-1">Posts this month</p>
+            <p className="text-4xl font-bold text-card-foreground">{stats.drafts}</p>
+            <p className="text-xs text-muted-foreground mt-2 font-medium">Awaiting completion</p>
           </Card>
         </div>
 

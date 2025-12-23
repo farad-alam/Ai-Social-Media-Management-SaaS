@@ -85,3 +85,25 @@ export async function deletePost(postId: string) {
         return { error: 'Failed to delete post' }
     }
 }
+
+export async function getMediaLibrary() {
+    const { userId } = await auth()
+    if (!userId) return { error: 'Unauthorized' }
+
+    try {
+        const posts = await prisma.post.findMany({
+            where: { userId },
+            select: { imageUrls: true },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        // Flatten all imageUrls from all posts and get unique values
+        const allImages = posts.flatMap(p => p.imageUrls)
+        const uniqueImages = [...new Set(allImages)]
+
+        return { images: uniqueImages }
+    } catch (error) {
+        console.error('Media Library Error:', error)
+        return { error: 'Failed to fetch media library' }
+    }
+}

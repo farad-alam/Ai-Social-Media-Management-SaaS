@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
@@ -13,9 +13,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
-import { createPost } from "@/app/actions/post"
+import { createPost, getMediaLibrary } from "@/app/actions/post"
 import { generateCaption } from "@/app/actions/ai"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarPicker } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 const suggestedHashtags = [
   "#instagram",
@@ -45,9 +49,23 @@ export default function CreatePostPage() {
   const [uploadedImage, setUploadedImage] = useState(null)
   const [fileToUpload, setFileToUpload] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
-  const [scheduleDate, setScheduleDate] = useState("")
+  const [date, setDate] = useState(null)
   const [scheduleTime, setScheduleTime] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
+  const [mediaLibrary, setMediaLibrary] = useState([])
+
+  useEffect(() => {
+    if (isMediaLibraryOpen) {
+      async function loadMedia() {
+        const result = await getMediaLibrary()
+        if (result.images) {
+          setMediaLibrary(result.images)
+        }
+      }
+      loadMedia()
+    }
+  }, [isMediaLibraryOpen])
 
   // Utility to compress image using Canvas
   const compressImage = async (file) => {
@@ -85,6 +103,7 @@ export default function CreatePostPage() {
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
     if (file) {
+      setIsMediaLibraryOpen(false)
       if (file.type.startsWith('image/')) {
         try {
           // Optimistic UI update
@@ -143,35 +162,57 @@ export default function CreatePostPage() {
   const handleSchedulePost = async () => {
     if (isSubmitting) return
 
-    if (!fileToUpload) {
-      toast({ title: "Error", description: "Please upload an image first", variant: "destructive" })
+    if (!uploadedImage) {
+      toast({ title: "Error", description: "Please upload or select an image first", variant: "destructive" })
       return
     }
-    if (!caption) {
-      toast({ title: "Error", description: "Please write a caption", variant: "destructive" })
+    if (!date) {
+      toast({ title: "Error", description: "Please select a date", variant: "destructive" })
+      return
+    }
+    if (!scheduleTime) {
+      toast({ title: "Error", description: "Please select a time", variant: "destructive" })
+      return
+    }
+
+    const scheduleDateStr = format(date, "yyyy-MM-dd")
+    const combinedDateTime = new Date(`${scheduleDateStr}T${scheduleTime}:00`)
+
+    if (combinedDateTime <= new Date()) {
+      toast({
+        title: "Error",
+        description: "Scheduled time must be in the future",
+        variant: "destructive"
+      })
       return
     }
 
     setIsSubmitting(true)
     try {
-      // 1. Upload to Supabase
-      const filename = `${Date.now()}-${fileToUpload.name}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('posts')
-        .upload(filename, fileToUpload)
+      let finalImageUrl = uploadedImage
 
-      if (uploadError) throw uploadError
+      // 1. Upload to Supabase ONLY if it's a new local file
+      if (fileToUpload) {
+        const filename = `${Date.now()}-${fileToUpload.name}`
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(filename, fileToUpload)
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('posts')
-        .getPublicUrl(filename)
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('posts')
+          .getPublicUrl(filename)
+
+        finalImageUrl = publicUrl
+      }
 
       // 2. Create Post in DB
       const formData = new FormData()
       formData.append('caption', caption + " " + selectedHashtags.join(" "))
-      formData.append('imageUrl', publicUrl)
-      if (scheduleDate) formData.append('scheduleDate', scheduleDate)
-      if (scheduleTime) formData.append('scheduleTime', scheduleTime)
+      formData.append('imageUrl', finalImageUrl)
+      formData.append('scheduleDate', scheduleDateStr)
+      formData.append('scheduleTime', scheduleTime)
 
       const result = await createPost(formData)
 
@@ -181,13 +222,19 @@ export default function CreatePostPage() {
       } else {
         toast({
           title: "Success! Post Created",
-          description: "Your post has been scheduled. Redirecting to dashboard...",
+          description: "Your post has been scheduled successfully.",
           variant: "default"
         })
-        // Delay redirect to allow toast to be seen
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 2000)
+
+        // Reset form state for next post instead of redirecting
+        setCaption("")
+        setTopic("")
+        setUploadedImage(null)
+        setFileToUpload(null)
+        setDate(null)
+        setScheduleTime("")
+        setSelectedHashtags([])
+        setIsSubmitting(false)
       }
 
     } catch (error) {
@@ -211,19 +258,21 @@ export default function CreatePostPage() {
           <div className="space-y-6">
             {/* Media Upload */}
             <Card className="p-6 bg-card border-border">
-              <h2 className="text-lg font-semibold text-card-foreground mb-4">Upload Media</h2>
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">Media</h2>
 
               {!uploadedImage ? (
-                <label className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                <div
+                  onClick={() => setIsMediaLibraryOpen(true)}
+                  className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+                >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-12 h-12 text-muted-foreground mb-4" />
                     <p className="mb-2 text-sm text-card-foreground">
-                      <span className="font-semibold">Click to upload</span> or drag and drop
+                      <span className="font-semibold">Click to select from Library</span> or upload new
                     </p>
-                    <p className="text-xs text-muted-foreground">PNG, JPG or MP4 (MAX. 10MB)</p>
+                    <p className="text-xs text-muted-foreground">Reuse your previous content</p>
                   </div>
-                  <input type="file" className="hidden" accept="image/*,video/*" onChange={handleImageUpload} />
-                </label>
+                </div>
               ) : (
                 <div className="relative">
                   <img
@@ -345,29 +394,65 @@ export default function CreatePostPage() {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date" className="text-card-foreground">
-                    Date
+                  <Label className="text-card-foreground block">
+                    Select Date
                   </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    className="bg-background border-input text-foreground"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-background border-input",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        disabled={(date) =>
+                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="time" className="text-card-foreground">
-                    Time
+                  <Label className="text-card-foreground block">
+                    Select Time
                   </Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={scheduleTime}
-                    onChange={(e) => setScheduleTime(e.target.value)}
-                    className="bg-background border-input text-foreground"
-                  />
+                  <Select value={scheduleTime} onValueChange={setScheduleTime}>
+                    <SelectTrigger className="bg-background border-input text-foreground">
+                      <SelectValue placeholder="Pick a time" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border max-h-[300px]">
+                      {Array.from({ length: 24 * 4 }).map((_, i) => {
+                        const h = Math.floor(i / 4)
+                        const m = (i % 4) * 15
+                        const hours24 = h.toString().padStart(2, '0')
+                        const minutes = m.toString().padStart(2, '0')
+                        const value = `${hours24}:${minutes}`
+
+                        // 12-hour format display
+                        const period = h >= 12 ? 'PM' : 'AM'
+                        const hours12 = h % 12 === 0 ? 12 : h % 12
+                        const label = `${hours12}:${minutes} ${period}`
+
+                        return (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
@@ -471,6 +556,54 @@ export default function CreatePostPage() {
             <div className="space-y-2">
               <p className="text-sm text-foreground">{caption || "Your caption will appear here..."}</p>
               {selectedHashtags.length > 0 && <p className="text-sm text-primary">{selectedHashtags.join(" ")}</p>}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Library Modal */}
+      <Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl bg-card max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-card-foreground">Media Library</DialogTitle>
+            <DialogDescription>Select a previously uploaded image or upload a new one</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {/* Upload New Card */}
+              <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors bg-muted/50">
+                <div className="flex flex-col items-center justify-center">
+                  <Upload className="w-8 h-8 text-primary mb-2" />
+                  <span className="text-xs font-semibold">Upload New</span>
+                </div>
+                <input type="file" className="hidden" accept="image/*,video/*" onChange={handleImageUpload} />
+              </label>
+
+              {/* Library Images */}
+              {mediaLibrary.length === 0 ? (
+                <div className="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground">
+                  <ImageIcon className="w-12 h-12 mb-4 opacity-20" />
+                  <p>Your library is empty</p>
+                </div>
+              ) : (
+                mediaLibrary.map((url, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setUploadedImage(url)
+                      setFileToUpload(null)
+                      setIsMediaLibraryOpen(false)
+                    }}
+                    className="relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary transition-all group bg-muted"
+                  >
+                    <img src={url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <span className="text-white text-xs font-bold bg-primary/80 px-2 py-1 rounded">Select</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </DialogContent>

@@ -24,6 +24,18 @@ export async function getDashboardData() {
                 status: 'SCHEDULED'
             }
         })
+        const publishedPostsCount = await prisma.post.count({
+            where: {
+                userId,
+                status: 'PUBLISHED'
+            }
+        })
+        const draftPostsCount = await prisma.post.count({
+            where: {
+                userId,
+                status: 'DRAFT'
+            }
+        })
 
         // Mock analytics for now as we don't have Instagram API connected yet
         const engagement = "0"
@@ -32,9 +44,9 @@ export async function getDashboardData() {
         return {
             stats: {
                 totalPosts,
-                engagement,
-                comments,
-                scheduled: scheduledPostsCount
+                published: publishedPostsCount,
+                scheduled: scheduledPostsCount,
+                drafts: draftPostsCount
             },
             posts: posts.map(p => ({
                 ...p,
