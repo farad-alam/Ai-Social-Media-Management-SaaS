@@ -15,18 +15,20 @@ export default function SignUpPage() {
           </div>
           <span className="text-2xl font-bold text-foreground">SocialFlow</span>
         </Link>
-        <SignUp appearance={{
-          elements: {
-            rootBox: "w-full",
-            card: "bg-card border-border shadow-none w-full",
-            headerTitle: "text-card-foreground",
-            headerSubtitle: "text-muted-foreground",
-            formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90",
-            formFieldLabel: "text-card-foreground",
-            formFieldInput: "bg-background border-input text-foreground",
-            footerActionLink: "text-primary hover:text-primary/80"
-          }
-        }} />
+        <SignUp
+          fallbackRedirectUrl="/dashboard"
+          appearance={{
+            elements: {
+              rootBox: "w-full",
+              card: "bg-card border-border shadow-none w-full",
+              headerTitle: "text-card-foreground",
+              headerSubtitle: "text-muted-foreground",
+              formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90",
+              formFieldLabel: "text-card-foreground",
+              formFieldInput: "bg-background border-input text-foreground",
+              footerActionLink: "text-primary hover:text-primary/80"
+            }
+          }} />
       </div>
     </div>
   )

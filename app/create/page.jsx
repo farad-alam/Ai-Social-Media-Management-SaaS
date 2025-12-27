@@ -14,12 +14,16 @@ import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X } from "lucide-re
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
+import { getInstagramStatus } from "@/app/actions/instagram"
 import { generateCaption } from "@/app/actions/ai"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarPicker } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+
+import { FFmpeg } from '@ffmpeg/ffmpeg'
+import { fetchFile, toBlobURL } from '@ffmpeg/util'
 
 const suggestedHashtags = [
   "#instagram",
@@ -54,18 +58,48 @@ export default function CreatePostPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [mediaLibrary, setMediaLibrary] = useState([])
+  const [instagramProfile, setInstagramProfile] = useState(null)
+
+  // New State for Reels
+  const [mediaType, setMediaType] = useState("IMAGE") // IMAGE or REEL
+  const [isCompressing, setIsCompressing] = useState(false)
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
+  const ffmpegRef = useState(new FFmpeg())
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  const load = async () => {
+    const ffmpeg = ffmpegRef[0]
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    })
+    setFfmpegLoaded(true)
+
+    // Load Instagram Profile
+    const status = await getInstagramStatus()
+    if (status.isConnected) {
+      setInstagramProfile({
+        username: status.username,
+        picture: status.picture
+      })
+    }
+  }
 
   useEffect(() => {
     if (isMediaLibraryOpen) {
       async function loadMedia() {
-        const result = await getMediaLibrary()
+        const result = await getMediaLibrary(mediaType) // Pass mediaType to filter
         if (result.images) {
           setMediaLibrary(result.images)
         }
       }
       loadMedia()
     }
-  }, [isMediaLibraryOpen])
+  }, [isMediaLibraryOpen, mediaType]) // Add mediaType dependency
 
   // Utility to compress image using Canvas
   const compressImage = async (file) => {
@@ -100,11 +134,42 @@ export default function CreatePostPage() {
     })
   }
 
+  const compressVideo = async (file) => {
+    setIsCompressing(true)
+    const ffmpeg = ffmpegRef[0]
+
+    try {
+      if (!ffmpegLoaded) {
+        await load()
+      }
+
+      const inputName = 'input.mp4'
+      const outputName = 'output.mp4'
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+
+      // Compress video: scale to 720p height, crf 28 (good tradeoff), preset faster
+      await ffmpeg.exec(['-i', inputName, '-vf', 'scale=-2:720', '-c:v', 'libx264', '-crf', '28', '-preset', 'faster', outputName])
+
+      const data = await ffmpeg.readFile(outputName)
+      const compressedBlob = new Blob([data], { type: 'video/mp4' })
+      const compressedFile = new File([compressedBlob], file.name, { type: 'video/mp4' })
+
+      setIsCompressing(false)
+      return compressedFile
+    } catch (error) {
+      console.error("Video compression error:", error)
+      setIsCompressing(false)
+      throw error
+    }
+  }
+
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]
     if (file) {
       setIsMediaLibraryOpen(false)
-      if (file.type.startsWith('image/')) {
+
+      if (mediaType === 'IMAGE' && file.type.startsWith('image/')) {
         try {
           // Optimistic UI update
           const reader = new FileReader()
@@ -121,14 +186,44 @@ export default function CreatePostPage() {
           console.error("Compression failed", error)
           setFileToUpload(file) // Fallback to original
         }
-      } else {
-        // Video or other
-        setFileToUpload(file)
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setUploadedImage(reader.result)
+      } else if (mediaType === 'REEL' && file.type.startsWith('video/')) {
+        // Check Video Duration
+        const video = document.createElement('video')
+        video.preload = 'metadata'
+        video.onloadedmetadata = async function () {
+          window.URL.revokeObjectURL(video.src)
+          if (video.duration > 180) { // 3 minutes limit
+            toast({
+              title: "Video too long",
+              description: "Reels generally must be 90 seconds or less (we allow up to 3 mins). Please trim your video.",
+              variant: "destructive"
+            })
+            setFileToUpload(null)
+            setUploadedImage(null)
+            return
+          }
+
+          try {
+            // Show preview immediately with blob url (no reader needed for video usually, but for upload preview)
+            const url = URL.createObjectURL(file)
+            setUploadedImage(url)
+
+            // Compress Video
+            toast({ title: "Compressing Video", description: "Please wait while we optimize your reel..." })
+            const compressed = await compressVideo(file)
+            setFileToUpload(compressed)
+            toast({ title: "Video Optimized", description: "Ready for upload!" })
+
+          } catch (error) {
+            console.error("Video compression failed", error)
+            setFileToUpload(file) // Fallback
+            toast({ title: "Compression Failed", description: "Using original video file.", variant: "destructive" })
+          }
         }
-        reader.readAsDataURL(file)
+        video.src = URL.createObjectURL(file)
+
+      } else {
+        toast({ title: "Invalid File Type", description: `Please upload a ${mediaType === 'IMAGE' ? 'image' : 'video'} file.`, variant: "destructive" })
       }
     }
   }
@@ -161,9 +256,13 @@ export default function CreatePostPage() {
 
   const handleSchedulePost = async () => {
     if (isSubmitting) return
+    if (isCompressing) {
+      toast({ title: "Wait!", description: "Video is still compressing.", variant: "destructive" })
+      return
+    }
 
     if (!uploadedImage) {
-      toast({ title: "Error", description: "Please upload or select an image first", variant: "destructive" })
+      toast({ title: "Error", description: "Please upload or select media first", variant: "destructive" })
       return
     }
     if (!date) {
@@ -193,19 +292,23 @@ export default function CreatePostPage() {
 
       // 1. Upload to Supabase ONLY if it's a new local file
       if (fileToUpload) {
-        const filename = `${Date.now()}-${fileToUpload.name}`
+        const ext = fileToUpload.name.split('.').pop()
+        // Sanitize filename: Use timestamp + random string + extension to avoid "Invalid Key" errors with non-ASCII characters
+        const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('posts')
-          .upload(filename, fileToUpload)
+          .upload(cleanFileName, fileToUpload)
 
         if (uploadError) throw uploadError
 
         const { data: { publicUrl } } = supabase.storage
           .from('posts')
-          .getPublicUrl(filename)
+          .getPublicUrl(cleanFileName)
 
         finalImageUrl = publicUrl
       }
+      // Note: If using existing media from library (which are URLs), finalImageUrl is already a URL string
 
       // 2. Create Post in DB
       const formData = new FormData()
@@ -213,6 +316,7 @@ export default function CreatePostPage() {
       formData.append('imageUrl', finalImageUrl)
       formData.append('scheduleDate', scheduleDateStr)
       formData.append('scheduleTime', scheduleTime)
+      formData.append('mediaType', mediaType)
 
       const result = await createPost(formData)
 
@@ -256,9 +360,39 @@ export default function CreatePostPage() {
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Left Column - Upload & Caption */}
           <div className="space-y-6">
+            {/* Post Type Toggle */}
+            <div className="flex bg-muted p-1 rounded-lg">
+              <button
+                onClick={() => {
+                  setMediaType("IMAGE")
+                  setUploadedImage(null)
+                  setFileToUpload(null)
+                }}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
+                  mediaType === "IMAGE" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Post / Image
+              </button>
+              <button
+                onClick={() => {
+                  setMediaType("REEL")
+                  setUploadedImage(null)
+                  setFileToUpload(null)
+                }}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
+                  mediaType === "REEL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Reel / Video
+              </button>
+            </div>
+
             {/* Media Upload */}
             <Card className="p-6 bg-card border-border">
-              <h2 className="text-lg font-semibold text-card-foreground mb-4">Media</h2>
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">Media ({mediaType === "REEL" ? "Video" : "Image"})</h2>
 
               {!uploadedImage ? (
                 <div
@@ -270,20 +404,31 @@ export default function CreatePostPage() {
                     <p className="mb-2 text-sm text-card-foreground">
                       <span className="font-semibold">Click to select from Library</span> or upload new
                     </p>
-                    <p className="text-xs text-muted-foreground">Reuse your previous content</p>
+                    <p className="text-xs text-muted-foreground">
+                      {mediaType === 'REEL' ? "Upload MP4, MOV (Max 3 min)" : "Upload JPG, PNG"}
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div className="relative">
-                  <img
-                    src={uploadedImage || "/placeholder.svg"}
-                    alt="Uploaded content"
-                    className="w-full h-80 object-cover rounded-lg"
-                  />
+                  {mediaType === 'REEL' ? (
+                    <video
+                      src={uploadedImage}
+                      controls
+                      className="w-full h-80 object-cover rounded-lg bg-black"
+                    />
+                  ) : (
+                    <img
+                      src={uploadedImage || "/placeholder.svg"}
+                      alt="Uploaded content"
+                      className="w-full h-80 object-cover rounded-lg"
+                    />
+                  )}
+
                   <Button
                     variant="destructive"
                     size="icon"
-                    className="absolute top-2 right-2"
+                    className="absolute top-2 right-2 z-10"
                     onClick={() => {
                       setUploadedImage(null)
                       setFileToUpload(null)
@@ -291,6 +436,13 @@ export default function CreatePostPage() {
                   >
                     <X className="w-4 h-4" />
                   </Button>
+
+                  {isCompressing && (
+                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-lg">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2"></div>
+                      <p className="text-white text-sm font-medium">Compressing Video...</p>
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
@@ -478,21 +630,40 @@ export default function CreatePostPage() {
 
               <div className="bg-background border border-border rounded-lg p-4">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 bg-primary rounded-full" />
+                  <div className="w-8 h-8 rounded-full overflow-hidden">
+                    <img
+                      src={instagramProfile?.picture || "/placeholder.svg"}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">your_username</p>
+                    <p className="text-sm font-semibold text-foreground">{instagramProfile?.username || "your_username"}</p>
                     <p className="text-xs text-muted-foreground">Just now</p>
                   </div>
                 </div>
 
                 {uploadedImage ? (
-                  <img
-                    src={uploadedImage || "/placeholder.svg"}
-                    alt="Preview"
-                    className="w-full aspect-square object-cover rounded-lg mb-3"
-                  />
+                  mediaType === 'REEL' ? (
+                    <div className="flex justify-center bg-black rounded-lg mb-3">
+                      <video
+                        src={uploadedImage}
+                        className="h-[400px] w-auto aspect-[9/16] object-cover rounded-lg"
+                        controls={false}
+                        autoPlay
+                        loop
+                        muted
+                      />
+                    </div>
+                  ) : (
+                    <img
+                      src={uploadedImage || "/placeholder.svg"}
+                      alt="Preview"
+                      className="w-full aspect-square object-cover rounded-lg mb-3"
+                    />
+                  )
                 ) : (
-                  <div className="w-full aspect-square bg-secondary rounded-lg mb-3 flex items-center justify-center">
+                  <div className={`w-full ${mediaType === 'REEL' ? 'aspect-[9/16] max-h-[400px]' : 'aspect-square'} bg-secondary rounded-lg mb-3 flex items-center justify-center transition-all`}>
                     <ImageIcon className="w-12 h-12 text-muted-foreground" />
                   </div>
                 )}
@@ -530,32 +701,49 @@ export default function CreatePostPage() {
 
       {/* Full Preview Modal */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-md bg-card">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col bg-card p-0">
+          <DialogHeader className="p-4 border-b border-border">
             <DialogTitle className="text-card-foreground">Instagram Post Preview</DialogTitle>
             <DialogDescription>This is how your post will appear on Instagram</DialogDescription>
           </DialogHeader>
 
-          <div className="bg-background border border-border rounded-lg p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-primary rounded-full" />
-              <div>
-                <p className="font-semibold text-foreground">your_username</p>
-                <p className="text-xs text-muted-foreground">Just now</p>
+          <div className="overflow-y-auto p-4">
+            <div className="bg-background border border-border rounded-lg p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden">
+                  <img
+                    src={instagramProfile?.picture || "/placeholder.svg"}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{instagramProfile?.username || "your_username"}</p>
+                  <p className="text-xs text-muted-foreground">Just now</p>
+                </div>
               </div>
-            </div>
 
-            {uploadedImage && (
-              <img
-                src={uploadedImage || "/placeholder.svg"}
-                alt="Preview"
-                className="w-full aspect-square object-cover rounded-lg mb-3"
-              />
-            )}
+              {uploadedImage && (
+                mediaType === 'REEL' ? (
+                  <video
+                    src={uploadedImage}
+                    controls
+                    autoPlay
+                    className="w-full aspect-[9/16] object-cover rounded-lg mb-3 bg-black"
+                  />
+                ) : (
+                  <img
+                    src={uploadedImage || "/placeholder.svg"}
+                    alt="Preview"
+                    className="w-full aspect-square object-cover rounded-lg mb-3"
+                  />
+                )
+              )}
 
-            <div className="space-y-2">
-              <p className="text-sm text-foreground">{caption || "Your caption will appear here..."}</p>
-              {selectedHashtags.length > 0 && <p className="text-sm text-primary">{selectedHashtags.join(" ")}</p>}
+              <div className="space-y-2">
+                <p className="text-sm text-foreground">{caption || "Your caption will appear here..."}</p>
+                {selectedHashtags.length > 0 && <p className="text-sm text-primary">{selectedHashtags.join(" ")}</p>}
+              </div>
             </div>
           </div>
         </DialogContent>
@@ -565,8 +753,8 @@ export default function CreatePostPage() {
       <Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen}>
         <DialogContent className="max-w-4xl bg-card max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-card-foreground">Media Library</DialogTitle>
-            <DialogDescription>Select a previously uploaded image or upload a new one</DialogDescription>
+            <DialogTitle className="text-card-foreground">Media Library ({mediaType === "REEL" ? "Videos" : "Images"})</DialogTitle>
+            <DialogDescription>Select a previously uploaded {mediaType === "REEL" ? "video" : "image"} or upload a new one</DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -577,7 +765,7 @@ export default function CreatePostPage() {
                   <Upload className="w-8 h-8 text-primary mb-2" />
                   <span className="text-xs font-semibold">Upload New</span>
                 </div>
-                <input type="file" className="hidden" accept="image/*,video/*" onChange={handleImageUpload} />
+                <input type="file" className="hidden" accept={mediaType === 'REEL' ? "video/*" : "image/*"} onChange={handleImageUpload} />
               </label>
 
               {/* Library Images */}
@@ -597,7 +785,12 @@ export default function CreatePostPage() {
                     }}
                     className="relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary transition-all group bg-muted"
                   >
-                    <img src={url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
+                    {mediaType === 'REEL' ? (
+                      <video src={url} className="w-full h-full object-cover" />
+                    ) : (
+                      <img src={url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
+                    )}
+
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                       <span className="text-white text-xs font-bold bg-primary/80 px-2 py-1 rounded">Select</span>
                     </div>

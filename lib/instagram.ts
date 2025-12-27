@@ -97,4 +97,52 @@ export class InstagramClient {
 
         return publishData.id;
     }
+
+    static async publishReel(instagramId: string, videoUrl: string, caption: string, accessToken: string) {
+        // 1. Create Container for REELS
+        // Note: media_type=REELS is required for reels
+        const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=REELS&video_url=${encodeURIComponent(videoUrl)}&caption=${encodeURIComponent(caption)}&access_token=${accessToken}`;
+        const createRes = await fetch(createUrl, { method: 'POST' });
+        const createData = await createRes.json();
+
+        if (createData.error) throw new Error(createData.error.message);
+
+        const creationId = createData.id;
+
+        // 2. Check Container Status (Video processing takes time)
+        // For simplicity in this non-blocking implementation, we might just try to publish. 
+        // But optimally we should poll. Instagram API usually requires waiting until status is FINISHED.
+        // For this MVP, we will try to publish immediately, but if it fails, the user might see a failure.
+        // A better approach for reels is usually to have a separate status check, but let's try the direct publish for now
+        // or add a small delay.
+
+        // Let's add a small polling mechanism here (blocking the server action for a bit)
+        let status = 'IN_PROGRESS';
+        let retries = 0;
+
+        while (status !== 'FINISHED' && retries < 10) {
+            await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+            const statusRes = await fetch(statusUrl);
+            const statusData = await statusRes.json();
+
+            if (statusData.status_code) {
+                status = statusData.status_code;
+            }
+            retries++;
+        }
+
+        if (status !== 'FINISHED') {
+            throw new Error("Video processing timed out or failed");
+        }
+
+        // 3. Publish Container
+        const publishUrl = `https://graph.facebook.com/v19.0/${instagramId}/media_publish?creation_id=${creationId}&access_token=${accessToken}`;
+        const publishRes = await fetch(publishUrl, { method: 'POST' });
+        const publishData = await publishRes.json();
+
+        if (publishData.error) throw new Error(publishData.error.message);
+
+        return publishData.id;
+    }
 }

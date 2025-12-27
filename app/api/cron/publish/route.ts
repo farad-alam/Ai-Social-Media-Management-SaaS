@@ -66,23 +66,44 @@ export async function GET() {
                     continue;
                 }
 
-                const publishId = await InstagramClient.publishImage(
-                    account.instagramId,
-                    imageUrl,
-                    post.caption,
-                    account.accessToken
-                );
+                if (post.mediaType === 'REEL') {
+                    const publishId = await InstagramClient.publishReel(
+                        account.instagramId,
+                        imageUrl,
+                        post.caption,
+                        account.accessToken
+                    );
 
-                // Update Status
-                await prisma.post.update({
-                    where: { id: post.id },
-                    data: {
-                        status: 'PUBLISHED',
-                        instagramPostId: publishId
-                    }
-                });
+                    // Update Status
+                    await prisma.post.update({
+                        where: { id: post.id },
+                        data: {
+                            status: 'PUBLISHED',
+                            instagramPostId: publishId
+                        }
+                    });
 
-                results.push({ id: post.id, status: 'PUBLISHED', publishId });
+                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'REEL' });
+
+                } else {
+                    const publishId = await InstagramClient.publishImage(
+                        account.instagramId,
+                        imageUrl,
+                        post.caption,
+                        account.accessToken
+                    );
+
+                    // Update Status
+                    await prisma.post.update({
+                        where: { id: post.id },
+                        data: {
+                            status: 'PUBLISHED',
+                            instagramPostId: publishId
+                        }
+                    });
+
+                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'IMAGE' });
+                }
 
             } catch (postError: any) {
                 console.error(`Failed to publish post ${post.id}`, postError);

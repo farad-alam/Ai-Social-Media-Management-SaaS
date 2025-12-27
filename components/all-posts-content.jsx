@@ -117,27 +117,43 @@ export default function AllPostsContent() {
                                     className="relative aspect-[3/4] group cursor-pointer bg-muted overflow-hidden"
                                     onClick={() => handlePostClick(post)}
                                 >
-                                    <img
-                                        src={post.imageUrls?.[0] || "/placeholder.svg"}
-                                        alt="Post preview"
-                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                    />
+                                    {post.mediaType === 'REEL' ? (
+                                        <video
+                                            src={post.imageUrls?.[0]}
+                                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                            muted
+                                            playsInline
+                                            onMouseOver={event => event.target.play()}
+                                            onMouseOut={event => event.target.pause()}
+                                        />
+                                    ) : (
+                                        <img
+                                            src={post.imageUrls?.[0] || "/placeholder.svg"}
+                                            alt="Post preview"
+                                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                        />
+                                    )}
 
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                         <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
                                             <Badge className={`${statusBadge.className} text-[10px] px-1.5`}>
                                                 {statusBadge.label}
                                             </Badge>
+                                            {post.mediaType === 'REEL' && (
+                                                <Badge variant="secondary" className="text-[10px] px-1.5 opacity-80">
+                                                    Reel
+                                                </Badge>
+                                            )}
                                         </div>
 
                                         <button
                                             onClick={(e) => handleDeleteClick(e, post.id)}
-                                            className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full transition-colors backdrop-blur-sm z-10"
+                                            className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full transition-colors backdrop-blur-sm z-10 pointer-events-auto"
                                         >
                                             <Trash2 className="w-3.5 h-3.5 text-white" />
                                         </button>
 
-                                        <div className="absolute inset-0 flex items-center justify-center text-white pointer-events-none">
+                                        <div className="absolute inset-0 flex items-center justify-center text-white">
                                             <div className="flex gap-4">
                                                 <div className="flex items-center gap-1">
                                                     <Heart className="w-4 h-4 fill-white" />
@@ -150,6 +166,14 @@ export default function AllPostsContent() {
                                             </div>
                                         </div>
                                     </div>
+                                    {/* Play icon overlay for reels when not hovering */}
+                                    {post.mediaType === 'REEL' && (
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-50 group-hover:opacity-0 transition-opacity">
+                                            <div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center border border-white/50">
+                                                <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5"></div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )
                         })
@@ -157,34 +181,55 @@ export default function AllPostsContent() {
                 </div>
 
                 <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                    <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-                        <DialogHeader>
+                    <DialogContent className="max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card">
+                        <DialogHeader className="p-4 pb-2 border-b border-border">
                             <DialogTitle>Post Preview</DialogTitle>
                         </DialogHeader>
                         {previewPost && (
-                            <div className="space-y-4 overflow-y-auto pr-2">
-                                <div className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                                    <img
-                                        src={previewPost.imageUrls?.[0] || "/placeholder.svg"}
-                                        alt="Post preview"
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-2">
-                                        <Badge className={`${getStatusBadge(previewPost.status).className}`}>
-                                            {getStatusBadge(previewPost.status).label}
-                                        </Badge>
-                                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                                            <Clock className="w-4 h-4" />
-                                            {formatDateTime(previewPost.scheduledAt || previewPost.createdAt)}
-                                        </span>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <div className="bg-background">
+                                    <div className="flex items-center gap-3 p-3">
+                                        <div className="w-8 h-8 bg-primary rounded-full" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-foreground">your_username</p>
+                                            <p className="text-xs text-muted-foreground">Original Audio</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="font-semibold mb-2">Caption</h3>
-                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                            {previewPost.caption}
-                                        </p>
+                                    <div className={`relative w-full bg-black ${previewPost.mediaType === 'REEL' ? 'aspect-[9/16]' : 'aspect-square'}`}>
+                                        {previewPost.mediaType === 'REEL' ? (
+                                            <video
+                                                src={previewPost.imageUrls?.[0]}
+                                                controls
+                                                className="w-full h-full object-contain"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={previewPost.imageUrls?.[0] || "/placeholder.svg"}
+                                                alt="Post preview"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="p-4 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex gap-4">
+                                                <Heart className="w-6 h-6" />
+                                                <MessageCircle className="w-6 h-6" />
+                                            </div>
+                                            <Badge className={`${getStatusBadge(previewPost.status).className}`}>
+                                                {getStatusBadge(previewPost.status).label}
+                                            </Badge>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                                <span className="font-semibold text-foreground mr-2">your_username</span>
+                                                {previewPost.caption}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground mt-2 uppercase">
+                                                {formatDateTime(previewPost.scheduledAt || previewPost.createdAt)}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

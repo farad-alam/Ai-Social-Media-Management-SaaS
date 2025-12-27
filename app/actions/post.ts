@@ -16,6 +16,7 @@ export async function createPost(formData: FormData) {
     const imageUrl = formData.get('imageUrl') as string
     const scheduleDate = formData.get('scheduleDate') as string
     const scheduleTime = formData.get('scheduleTime') as string
+    const mediaType = formData.get('mediaType') as string || 'IMAGE'
 
     if (!caption || !imageUrl) {
         return { error: 'Missing required fields' }
@@ -48,9 +49,10 @@ export async function createPost(formData: FormData) {
             data: {
                 userId,
                 caption,
-                imageUrls: [imageUrl],
+                imageUrls: [imageUrl], // We store video URL here for now as well since it's a string array, maybe rename locally in mind but schema is imageUrls
                 scheduledAt,
                 status,
+                mediaType
             }
         })
 
@@ -86,13 +88,16 @@ export async function deletePost(postId: string) {
     }
 }
 
-export async function getMediaLibrary() {
+export async function getMediaLibrary(mediaType: string = 'IMAGE') {
     const { userId } = await auth()
     if (!userId) return { error: 'Unauthorized' }
 
     try {
         const posts = await prisma.post.findMany({
-            where: { userId },
+            where: {
+                userId,
+                mediaType // Filter by media type
+            },
             select: { imageUrls: true },
             orderBy: { createdAt: 'desc' }
         })
