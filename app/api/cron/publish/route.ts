@@ -85,7 +85,7 @@ export async function GET() {
 
                     results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'REEL' });
 
-                } else {
+                } else if (post.mediaType === 'IMAGE') {
                     const publishId = await InstagramClient.publishImage(
                         account.instagramId,
                         imageUrl,
@@ -103,6 +103,31 @@ export async function GET() {
                     });
 
                     results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'IMAGE' });
+                } else if (post.mediaType === 'STORY') {
+                    // Detect if story is video or image based on extension or some other flag?
+                    // For now, let's assume if it ends in .mp4 or .mov it is video, else image.
+                    // Or re-use the file type detection logic if possible.
+                    // Ideally we should store 'MEDIA_KIND' (video/image) separate from 'POST_TYPE' (feed/reel/story).
+                    // For now, simple extension check:
+                    const isVideo = imageUrl.toLowerCase().match(/\.(mp4|mov|avi|wmv|flv|webm)$/);
+
+                    const publishId = await InstagramClient.publishStoryMedia(
+                        account.instagramId,
+                        imageUrl,
+                        isVideo ? 'VIDEO' : 'IMAGE',
+                        account.accessToken
+                    );
+
+                    // Update Status
+                    await prisma.post.update({
+                        where: { id: post.id },
+                        data: {
+                            status: 'PUBLISHED',
+                            instagramPostId: publishId
+                        }
+                    });
+
+                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'STORY' });
                 }
 
             } catch (postError: any) {

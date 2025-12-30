@@ -145,4 +145,67 @@ export class InstagramClient {
 
         return publishData.id;
     }
+    static async publishStory(instagramId: string, mediaUrl: string, accessToken: string) {
+        // 1. Create Container for STORIES
+        // media_type=STORIES is required.
+        // Stories do NOT support captions in the API (caption param is ignored or causes error if provided usually, but for consistency we just won't pass it).
+        const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=STORIES&image_url=${encodeURIComponent(mediaUrl)}&access_token=${accessToken}`;
+
+        // Note: For Video Stories, we need video_url instead of image_url.
+        // Let's check file extension or rely on caller to know which one, but simplest is to try to detect or have separate args?
+        // Actually, for stories, it's safer to have strict types.
+        // However, standard "media" endpoint with media_type=STORIES takes "image_url" for images and "video_url" for videos.
+        // We will assume "url" is generic and try to detect or just send it as image_url if it looks like image, else video_url.
+        // Or better: Let's make the signature accept "type": 'IMAGE' | 'VIDEO'
+
+        // Revised implementation below to be robust:
+    }
+
+    static async publishStoryMedia(instagramId: string, mediaUrl: string, mediaType: 'IMAGE' | 'VIDEO', accessToken: string) {
+        let urlParam = '';
+        if (mediaType === 'VIDEO') {
+            urlParam = `video_url=${encodeURIComponent(mediaUrl)}`;
+        } else {
+            urlParam = `image_url=${encodeURIComponent(mediaUrl)}`;
+        }
+
+        const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=STORIES&${urlParam}&access_token=${accessToken}`;
+        const createRes = await fetch(createUrl, { method: 'POST' });
+        const createData = await createRes.json();
+
+        if (createData.error) throw new Error(createData.error.message);
+
+        const creationId = createData.id;
+
+        // 2. If Video, wait for processing
+        if (mediaType === 'VIDEO') {
+            let status = 'IN_PROGRESS';
+            let retries = 0;
+
+            while (status !== 'FINISHED' && retries < 10) {
+                await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
+                const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+                const statusRes = await fetch(statusUrl);
+                const statusData = await statusRes.json();
+
+                if (statusData.status_code) {
+                    status = statusData.status_code;
+                }
+                retries++;
+            }
+
+            if (status !== 'FINISHED') {
+                throw new Error("Story video processing timed out or failed");
+            }
+        }
+
+        // 3. Publish Container
+        const publishUrl = `https://graph.facebook.com/v19.0/${instagramId}/media_publish?creation_id=${creationId}&access_token=${accessToken}`;
+        const publishRes = await fetch(publishUrl, { method: 'POST' });
+        const publishData = await publishRes.json();
+
+        if (publishData.error) throw new Error(publishData.error.message);
+
+        return publishData.id;
+    }
 }

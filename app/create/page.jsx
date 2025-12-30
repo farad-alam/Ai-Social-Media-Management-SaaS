@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
@@ -21,9 +21,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarPicker } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-
-import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile, toBlobURL } from '@ffmpeg/util'
 
 const suggestedHashtags = [
   "#instagram",
@@ -61,17 +58,24 @@ export default function CreatePostPage() {
   const [instagramProfile, setInstagramProfile] = useState(null)
 
   // New State for Reels
-  const [mediaType, setMediaType] = useState("IMAGE") // IMAGE or REEL
+  const [mediaType, setMediaType] = useState("IMAGE") // IMAGE, REEL, STORY
   const [isCompressing, setIsCompressing] = useState(false)
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
-  const ffmpegRef = useState(new FFmpeg())
+  const ffmpegRef = useRef(null)
 
   useEffect(() => {
     load()
   }, [])
 
   const load = async () => {
-    const ffmpeg = ffmpegRef[0]
+    const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+    const { toBlobURL } = await import('@ffmpeg/util')
+
+    if (!ffmpegRef.current) {
+      ffmpegRef.current = new FFmpeg()
+    }
+
+    const ffmpeg = ffmpegRef.current
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd'
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
@@ -136,12 +140,13 @@ export default function CreatePostPage() {
 
   const compressVideo = async (file) => {
     setIsCompressing(true)
-    const ffmpeg = ffmpegRef[0]
 
     try {
       if (!ffmpegLoaded) {
         await load()
       }
+      const ffmpeg = ffmpegRef.current
+      const { fetchFile } = await import('@ffmpeg/util')
 
       const inputName = 'input.mp4'
       const outputName = 'output.mp4'
@@ -186,6 +191,41 @@ export default function CreatePostPage() {
           console.error("Compression failed", error)
           setFileToUpload(file) // Fallback to original
         }
+      } else if (mediaType === 'STORY') {
+        // STORIES can be Image or Video
+        if (file.type.startsWith('image/')) {
+          // Treat as Image
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            setUploadedImage(reader.result)
+          }
+          reader.readAsDataURL(file)
+          setFileToUpload(file) // No compression for now or reuse compressImage
+        } else if (file.type.startsWith('video/')) {
+          // Treat as Video (limit 60s)
+          const video = document.createElement('video')
+          video.preload = 'metadata'
+          video.onloadedmetadata = async function () {
+            window.URL.revokeObjectURL(video.src)
+            if (video.duration > 60) {
+              toast({
+                title: "Story too long",
+                description: "Stories must be 60 seconds or less.",
+                variant: "destructive"
+              })
+              setFileToUpload(null)
+              setUploadedImage(null)
+              return
+            }
+            const url = URL.createObjectURL(file)
+            setUploadedImage(url)
+            setFileToUpload(file) // No compression for now
+          }
+          video.src = URL.createObjectURL(file)
+        } else {
+          toast({ title: "Invalid File Type", description: "Stories can be images or videos.", variant: "destructive" })
+        }
+
       } else if (mediaType === 'REEL' && file.type.startsWith('video/')) {
         // Check Video Duration
         const video = document.createElement('video')
@@ -223,7 +263,7 @@ export default function CreatePostPage() {
         video.src = URL.createObjectURL(file)
 
       } else {
-        toast({ title: "Invalid File Type", description: `Please upload a ${mediaType === 'IMAGE' ? 'image' : 'video'} file.`, variant: "destructive" })
+        toast({ title: "Invalid File Type", description: `Please upload a valid file for ${mediaType}.`, variant: "destructive" })
       }
     }
   }
@@ -373,7 +413,7 @@ export default function CreatePostPage() {
                   mediaType === "IMAGE" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Post / Image
+                Post
               </button>
               <button
                 onClick={() => {
@@ -386,13 +426,28 @@ export default function CreatePostPage() {
                   mediaType === "REEL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Reel / Video
+                Reel
+              </button>
+              <button
+                onClick={() => {
+                  setMediaType("STORY")
+                  setUploadedImage(null)
+                  setFileToUpload(null)
+                }}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
+                  mediaType === "STORY" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Story
               </button>
             </div>
 
             {/* Media Upload */}
             <Card className="p-6 bg-card border-border">
-              <h2 className="text-lg font-semibold text-card-foreground mb-4">Media ({mediaType === "REEL" ? "Video" : "Image"})</h2>
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">
+                Media ({mediaType === "REEL" ? "Video" : mediaType === "STORY" ? "Image/Video" : "Image"})
+              </h2>
 
               {!uploadedImage ? (
                 <div
@@ -405,23 +460,23 @@ export default function CreatePostPage() {
                       <span className="font-semibold">Click to select from Library</span> or upload new
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {mediaType === 'REEL' ? "Upload MP4, MOV (Max 3 min)" : "Upload JPG, PNG"}
+                      {mediaType === 'REEL' ? "Upload MP4, MOV (Max 3 min)" : mediaType === 'STORY' ? "Upload Image or Video (Max 60s, 9:16)" : "Upload JPG, PNG"}
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="relative">
-                  {mediaType === 'REEL' ? (
+                  {mediaType === 'REEL' || (mediaType === 'STORY' && uploadedImage?.toString().startsWith('blob:') && !fileToUpload?.type.startsWith('image/')) ? (
                     <video
                       src={uploadedImage}
                       controls
-                      className="w-full h-80 object-cover rounded-lg bg-black"
+                      className={`w-full ${mediaType === 'REEL' || mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'} object-cover rounded-lg bg-black`}
                     />
                   ) : (
                     <img
                       src={uploadedImage || "/placeholder.svg"}
                       alt="Uploaded content"
-                      className="w-full h-80 object-cover rounded-lg"
+                      className={`w-full ${mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'} object-cover rounded-lg`}
                     />
                   )}
 
@@ -644,7 +699,7 @@ export default function CreatePostPage() {
                 </div>
 
                 {uploadedImage ? (
-                  mediaType === 'REEL' ? (
+                  mediaType === 'REEL' || (mediaType === 'STORY' && fileToUpload?.type?.startsWith('video/')) ? (
                     <div className="flex justify-center bg-black rounded-lg mb-3">
                       <video
                         src={uploadedImage}
@@ -659,11 +714,11 @@ export default function CreatePostPage() {
                     <img
                       src={uploadedImage || "/placeholder.svg"}
                       alt="Preview"
-                      className="w-full aspect-square object-cover rounded-lg mb-3"
+                      className={`w-full ${mediaType === 'STORY' ? 'aspect-[9/16]' : 'aspect-square'} object-cover rounded-lg mb-3`}
                     />
                   )
                 ) : (
-                  <div className={`w-full ${mediaType === 'REEL' ? 'aspect-[9/16] max-h-[400px]' : 'aspect-square'} bg-secondary rounded-lg mb-3 flex items-center justify-center transition-all`}>
+                  <div className={`w-full ${mediaType === 'REEL' || mediaType === 'STORY' ? 'aspect-[9/16] max-h-[400px]' : 'aspect-square'} bg-secondary rounded-lg mb-3 flex items-center justify-center transition-all`}>
                     <ImageIcon className="w-12 h-12 text-muted-foreground" />
                   </div>
                 )}
