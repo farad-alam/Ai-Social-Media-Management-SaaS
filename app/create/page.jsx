@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
@@ -52,13 +53,23 @@ export default function CreatePostPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [date, setDate] = useState(null)
   const [scheduleTime, setScheduleTime] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Specific Loading States
+  const [isScheduling, setIsScheduling] = useState(false)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+
+  // Derived state for general disabling
+  const isAnySubmitting = isScheduling || isSavingDraft || isGeneratingAI
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [mediaLibrary, setMediaLibrary] = useState([])
   const [instagramProfile, setInstagramProfile] = useState(null)
 
   // New State for Reels
   const [mediaType, setMediaType] = useState("IMAGE") // IMAGE, REEL, STORY
+  const [coverImage, setCoverImage] = useState(null)
+  const [coverFile, setCoverFile] = useState(null)
   const [isCompressing, setIsCompressing] = useState(false)
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
   const ffmpegRef = useRef(null)
@@ -268,15 +279,38 @@ export default function CreatePostPage() {
     }
   }
 
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setCoverImage(reader.result)
+      }
+      reader.readAsDataURL(file)
+
+      // Compress cover
+      try {
+        const compressed = await compressImage(file)
+        setCoverFile(compressed)
+      } catch (error) {
+        console.error("Cover compression failed", error)
+        setCoverFile(file)
+      }
+    } else if (file) {
+      toast({ title: "Invalid File", description: "Please upload an image for the cover.", variant: "destructive" })
+    }
+  }
+
   const handleGenerateCaption = async () => {
     if (!topic) {
       toast({ title: "Topic Required", description: "Please enter a topic or title for the AI.", variant: "destructive" })
       return
     }
 
-    setIsSubmitting(true)
+    setIsGeneratingAI(true)
     const result = await generateCaption(topic, tone)
-    setIsSubmitting(false)
+    setIsGeneratingAI(false)
 
     if (result.error) {
       toast({ title: "Error", description: result.error, variant: "destructive" })
@@ -294,8 +328,106 @@ export default function CreatePostPage() {
     }
   }
 
+  const handleSaveDraft = async () => {
+    if (isAnySubmitting) return
+    if (isCompressing) {
+      toast({ title: "Wait!", description: "Video is still compressing.", variant: "destructive" })
+      return
+    }
+
+    if (!uploadedImage) {
+      toast({ title: "Error", description: "Please upload or select media first", variant: "destructive" })
+      return
+    }
+
+    setIsSavingDraft(true)
+    try {
+      await submitPost(false)
+      toast({
+        title: "Draft Saved",
+        description: "Your post has been saved as a draft.",
+      })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "Failed to save draft.", variant: "destructive" })
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
+  const submitPost = async (isScheduled) => {
+    let finalImageUrl = uploadedImage
+
+    // 1. Upload Main Media to Supabase ONLY if it's a new local file
+    if (fileToUpload) {
+      const ext = fileToUpload.name.split('.').pop()
+      const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(cleanFileName, fileToUpload)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('posts')
+        .getPublicUrl(cleanFileName)
+
+      finalImageUrl = publicUrl
+    }
+
+    // 2. Upload Cover Image (if exists)
+    let finalCoverUrl = null
+    if (coverFile) {
+      const ext = coverFile.name.split('.').pop()
+      const cleanFileName = `cover-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(cleanFileName, coverFile)
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(cleanFileName)
+        finalCoverUrl = publicUrl
+      }
+    }
+
+    // 3. Create Post in DB
+    const formData = new FormData()
+    formData.append('caption', caption + " " + selectedHashtags.join(" "))
+    formData.append('imageUrl', finalImageUrl)
+    if (finalCoverUrl) {
+      formData.append('coverUrl', finalCoverUrl)
+    }
+
+    if (isScheduled && date && scheduleTime) {
+      const scheduleDateStr = format(date, "yyyy-MM-dd")
+      formData.append('scheduleDate', scheduleDateStr)
+      formData.append('scheduleTime', scheduleTime)
+    }
+
+    formData.append('mediaType', mediaType)
+
+    const result = await createPost(formData)
+
+    if (result.error) {
+      throw new Error(result.error)
+    } else {
+      // Reset form
+      setCaption("")
+      setTopic("")
+      setUploadedImage(null)
+      setFileToUpload(null)
+      setCoverImage(null)
+      setCoverFile(null)
+      setDate(null)
+      setScheduleTime("")
+      setSelectedHashtags([])
+    }
+  }
+
   const handleSchedulePost = async () => {
-    if (isSubmitting) return
+    if (isAnySubmitting) return
     if (isCompressing) {
       toast({ title: "Wait!", description: "Video is still compressing.", variant: "destructive" })
       return
@@ -326,65 +458,19 @@ export default function CreatePostPage() {
       return
     }
 
-    setIsSubmitting(true)
+    setIsScheduling(true)
     try {
-      let finalImageUrl = uploadedImage
-
-      // 1. Upload to Supabase ONLY if it's a new local file
-      if (fileToUpload) {
-        const ext = fileToUpload.name.split('.').pop()
-        // Sanitize filename: Use timestamp + random string + extension to avoid "Invalid Key" errors with non-ASCII characters
-        const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('posts')
-          .upload(cleanFileName, fileToUpload)
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('posts')
-          .getPublicUrl(cleanFileName)
-
-        finalImageUrl = publicUrl
-      }
-      // Note: If using existing media from library (which are URLs), finalImageUrl is already a URL string
-
-      // 2. Create Post in DB
-      const formData = new FormData()
-      formData.append('caption', caption + " " + selectedHashtags.join(" "))
-      formData.append('imageUrl', finalImageUrl)
-      formData.append('scheduleDate', scheduleDateStr)
-      formData.append('scheduleTime', scheduleTime)
-      formData.append('mediaType', mediaType)
-
-      const result = await createPost(formData)
-
-      if (result.error) {
-        toast({ title: "Error", description: result.error, variant: "destructive" })
-        setIsSubmitting(false)
-      } else {
-        toast({
-          title: "Success! Post Created",
-          description: "Your post has been scheduled successfully.",
-          variant: "default"
-        })
-
-        // Reset form state for next post instead of redirecting
-        setCaption("")
-        setTopic("")
-        setUploadedImage(null)
-        setFileToUpload(null)
-        setDate(null)
-        setScheduleTime("")
-        setSelectedHashtags([])
-        setIsSubmitting(false)
-      }
-
+      await submitPost(true)
+      toast({
+        title: "Success! Post Created",
+        description: "Your post has been scheduled successfully.",
+        variant: "default"
+      })
     } catch (error) {
       console.error(error)
-      toast({ title: "Error", description: "Failed to create post. Check console.", variant: "destructive" })
-      setIsSubmitting(false)
+      toast({ title: "Error", description: error.message || "Failed to create post.", variant: "destructive" })
+    } finally {
+      setIsScheduling(false)
     }
   }
 
@@ -407,6 +493,8 @@ export default function CreatePostPage() {
                   setMediaType("IMAGE")
                   setUploadedImage(null)
                   setFileToUpload(null)
+                  setCoverImage(null)
+                  setCoverFile(null)
                 }}
                 className={cn(
                   "flex-1 py-2 text-sm font-medium rounded-md transition-all",
@@ -420,6 +508,8 @@ export default function CreatePostPage() {
                   setMediaType("REEL")
                   setUploadedImage(null)
                   setFileToUpload(null)
+                  setCoverImage(null)
+                  setCoverFile(null)
                 }}
                 className={cn(
                   "flex-1 py-2 text-sm font-medium rounded-md transition-all",
@@ -433,6 +523,8 @@ export default function CreatePostPage() {
                   setMediaType("STORY")
                   setUploadedImage(null)
                   setFileToUpload(null)
+                  setCoverImage(null)
+                  setCoverFile(null)
                 }}
                 className={cn(
                   "flex-1 py-2 text-sm font-medium rounded-md transition-all",
@@ -472,6 +564,16 @@ export default function CreatePostPage() {
                       controls
                       className={`w-full ${mediaType === 'REEL' || mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'} object-cover rounded-lg bg-black`}
                     />
+                  ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http')) ? (
+                    <div className={`relative w-full ${mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'}`}>
+                      <Image
+                        src={uploadedImage}
+                        alt="Uploaded content"
+                        fill
+                        className="object-cover rounded-lg"
+                        sizes="(max-width: 768px) 100vw, 500px"
+                      />
+                    </div>
                   ) : (
                     <img
                       src={uploadedImage || "/placeholder.svg"}
@@ -487,6 +589,8 @@ export default function CreatePostPage() {
                     onClick={() => {
                       setUploadedImage(null)
                       setFileToUpload(null)
+                      setCoverImage(null)
+                      setCoverFile(null)
                     }}
                   >
                     <X className="w-4 h-4" />
@@ -500,6 +604,39 @@ export default function CreatePostPage() {
                   )}
                 </div>
               )}
+
+              {/* Reel Cover Upload */}
+              {mediaType === 'REEL' && uploadedImage && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <Label className="mb-2 block font-medium">Cover Photo (Optional)</Label>
+                  <div className="flex items-start gap-4">
+                    <div className={`relative w-20 h-32 bg-muted rounded border border-border flex items-center justify-center overflow-hidden flex-shrink-0`}>
+                      {coverImage ? (
+                        <>
+                          <Image src={coverImage} alt="Cover" fill className="object-cover" />
+                          <button
+                            className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full p-0.5"
+                            onClick={() => { setCoverImage(null); setCoverFile(null); }}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverUpload}
+                        className="mb-2 text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">Upload a thumbnail for your reel. If skipped, the first frame will be used.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Caption & AI */}
@@ -510,11 +647,11 @@ export default function CreatePostPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleGenerateCaption}
-                  disabled={isSubmitting}
+                  disabled={isAnySubmitting}
                   className="border-border text-foreground bg-transparent"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  {isSubmitting ? "Generating..." : "AI Generate"}
+                  {isGeneratingAI ? "Generating..." : "AI Generate"}
                 </Button>
               </div>
 
@@ -600,66 +737,52 @@ export default function CreatePostPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-card-foreground block">
-                    Select Date
-                  </Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal bg-background border-input",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-popover" align="start">
-                      <CalendarPicker
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                        disabled={(date) =>
-                          date < new Date(new Date().setHours(0, 0, 0, 0))
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1 space-y-2">
+                    <Label className="text-card-foreground block">
+                      Select Date
+                    </Label>
+                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal bg-background border-input",
+                            !date && "text-muted-foreground"
+                          )}
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {date ? format(date, "PPP") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-popover" align="start">
+                        <CalendarPicker
+                          mode="single"
+                          selected={date}
+                          onSelect={(newDate) => {
+                            setDate(newDate)
+                            setIsCalendarOpen(false)
+                          }}
+                          disabled={(date) =>
+                            date < new Date(new Date().setHours(0, 0, 0, 0))
+                          }
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label className="text-card-foreground block">
-                    Select Time
-                  </Label>
-                  <Select value={scheduleTime} onValueChange={setScheduleTime}>
-                    <SelectTrigger className="bg-background border-input text-foreground">
-                      <SelectValue placeholder="Pick a time" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border max-h-[300px]">
-                      {Array.from({ length: 24 * 4 }).map((_, i) => {
-                        const h = Math.floor(i / 4)
-                        const m = (i % 4) * 15
-                        const hours24 = h.toString().padStart(2, '0')
-                        const minutes = m.toString().padStart(2, '0')
-                        const value = `${hours24}:${minutes}`
-
-                        // 12-hour format display
-                        const period = h >= 12 ? 'PM' : 'AM'
-                        const hours12 = h % 12 === 0 ? 12 : h % 12
-                        const label = `${hours12}:${minutes} ${period}`
-
-                        return (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex-1 space-y-2">
+                    <Label className="text-card-foreground block">
+                      Select Time
+                    </Label>
+                    <Input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      className="bg-background border-input text-foreground"
+                    />
+                  </div>
                 </div>
 
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
@@ -710,6 +833,16 @@ export default function CreatePostPage() {
                         muted
                       />
                     </div>
+                  ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http')) ? (
+                    <div className={`relative w-full ${mediaType === 'STORY' ? 'aspect-[9/16]' : 'aspect-square'} mb-3`}>
+                      <Image
+                        src={uploadedImage}
+                        alt="Preview"
+                        fill
+                        className="object-cover rounded-lg"
+                        sizes="(max-width: 768px) 100vw, 300px"
+                      />
+                    </div>
                   ) : (
                     <img
                       src={uploadedImage || "/placeholder.svg"}
@@ -739,15 +872,20 @@ export default function CreatePostPage() {
 
             {/* Actions */}
             <div className="flex gap-4">
-              <Button variant="outline" className="flex-1 border-border text-foreground bg-transparent">
-                Save Draft
+              <Button
+                variant="outline"
+                className="flex-1 border-border text-foreground bg-transparent"
+                onClick={handleSaveDraft}
+                disabled={isAnySubmitting}
+              >
+                {isSavingDraft ? "Saving..." : "Save Draft"}
               </Button>
               <Button
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={handleSchedulePost}
-                disabled={isSubmitting}
+                disabled={isAnySubmitting}
               >
-                {isSubmitting ? "Scheduling..." : "Schedule Post"}
+                {isScheduling ? "Scheduling..." : "Schedule Post"}
               </Button>
             </div>
           </div>
@@ -786,6 +924,16 @@ export default function CreatePostPage() {
                     autoPlay
                     className="w-full aspect-[9/16] object-cover rounded-lg mb-3 bg-black"
                   />
+                ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http')) ? (
+                  <div className="relative w-full aspect-square mb-3">
+                    <Image
+                      src={uploadedImage}
+                      alt="Preview"
+                      fill
+                      className="object-cover rounded-lg"
+                      sizes="(max-width: 768px) 100vw, 500px"
+                    />
+                  </div>
                 ) : (
                   <img
                     src={uploadedImage || "/placeholder.svg"}
@@ -843,7 +991,13 @@ export default function CreatePostPage() {
                     {mediaType === 'REEL' ? (
                       <video src={url} className="w-full h-full object-cover" />
                     ) : (
-                      <img src={url} alt={`Media ${idx}`} className="w-full h-full object-cover" />
+                      <Image
+                        src={url}
+                        alt={`Media ${idx}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 33vw, 20vw"
+                      />
                     )}
 
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">

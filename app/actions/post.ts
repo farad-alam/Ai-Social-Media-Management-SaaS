@@ -14,6 +14,7 @@ export async function createPost(formData: FormData) {
 
     const caption = formData.get('caption') as string
     const imageUrl = formData.get('imageUrl') as string
+    const coverUrl = formData.get('coverUrl') as string
     const scheduleDate = formData.get('scheduleDate') as string
     const scheduleTime = formData.get('scheduleTime') as string
     const mediaType = formData.get('mediaType') as string || 'IMAGE'
@@ -44,12 +45,17 @@ export async function createPost(formData: FormData) {
             }
         })
 
+        const imageUrls = [imageUrl]
+        if (coverUrl) {
+            imageUrls.push(coverUrl)
+        }
+
         // 2. Create Post
         await prisma.post.create({
             data: {
                 userId,
                 caption,
-                imageUrls: [imageUrl], // We store video URL here for now as well since it's a string array, maybe rename locally in mind but schema is imageUrls
+                imageUrls,
                 scheduledAt,
                 status,
                 mediaType

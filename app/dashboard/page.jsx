@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Heart, MessageCircle, TrendingUp, Clock, CheckCircle2, FileEdit, Grid3X3 } from "lucide-react"
 import { getDashboardData } from "@/app/actions/dashboard"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -55,7 +56,11 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Posts</p>
               <Grid3X3 className="w-5 h-5 text-primary" />
             </div>
-            <p className="text-4xl font-bold text-card-foreground">{stats.totalPosts}</p>
+            {loading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <p className="text-4xl font-bold text-card-foreground">{stats.totalPosts}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-2 font-medium">Lifetime content count</p>
           </Card>
 
@@ -64,7 +69,11 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Published</p>
               <CheckCircle2 className="w-5 h-5 text-green-500" />
             </div>
-            <p className="text-4xl font-bold text-card-foreground">{stats.published}</p>
+            {loading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <p className="text-4xl font-bold text-card-foreground">{stats.published}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-2 font-medium">Successfully posted</p>
           </Card>
 
@@ -73,7 +82,11 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Scheduled</p>
               <Clock className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-4xl font-bold text-card-foreground">{stats.scheduled}</p>
+            {loading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <p className="text-4xl font-bold text-card-foreground">{stats.scheduled}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-2 font-medium">Ready for future</p>
           </Card>
 
@@ -82,7 +95,11 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Drafts</p>
               <FileEdit className="w-5 h-5 text-orange-500" />
             </div>
-            <p className="text-4xl font-bold text-card-foreground">{stats.drafts}</p>
+            {loading ? (
+              <Skeleton className="h-10 w-20" />
+            ) : (
+              <p className="text-4xl font-bold text-card-foreground">{stats.drafts}</p>
+            )}
             <p className="text-xs text-muted-foreground mt-2 font-medium">Awaiting completion</p>
           </Card>
         </div>
@@ -97,7 +114,11 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </div>
-          <CalendarView posts={posts} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
+          {loading ? (
+            <Skeleton className="h-[600px] w-full rounded-lg" />
+          ) : (
+            <CalendarView posts={posts} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
+          )}
         </div>
       </div>
     </DashboardLayout>

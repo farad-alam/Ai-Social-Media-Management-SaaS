@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -103,35 +104,68 @@ export default function AllPostsContent() {
                     <p className="text-muted-foreground">Manage and preview all your Instagram posts</p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-0.5 md:gap-1">
+                <div className="grid grid-cols-3 gap-0.5 md:gap-1 pb-20">
                     {loading ? (
-                        <p className="col-span-full text-center py-10">Loading posts...</p>
+                        Array.from({ length: 9 }).map((_, i) => (
+                            <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-sm border border-border/50" />
+                        ))
                     ) : posts.length === 0 ? (
                         <p className="text-muted-foreground col-span-full text-center py-10">No posts yet.</p>
                     ) : (
                         posts.map((post) => {
                             const statusBadge = getStatusBadge(post.status)
+
+                            // Determine the media source to display
+                            // For Reels: Check if a cover image exists (index 1), otherwise use video (index 0)
+                            // For Images: Use index 0
+                            const isReel = post.mediaType === 'REEL'
+                            const hasCover = isReel && post.imageUrls && post.imageUrls.length > 1
+
+                            // Logic:
+                            // 1. If Reel & Has Cover -> Show Cover (Image)
+                            // 2. If Reel & No Cover -> Show Video
+                            // 3. Else -> Show Image
+
                             return (
                                 <div
                                     key={post.id}
-                                    className="relative aspect-[3/4] group cursor-pointer bg-muted overflow-hidden"
+                                    className="relative aspect-[3/4] group cursor-pointer bg-muted overflow-hidden border border-border/20"
                                     onClick={() => handlePostClick(post)}
                                 >
-                                    {post.mediaType === 'REEL' ? (
+                                    {isReel && !hasCover ? (
                                         <video
                                             src={post.imageUrls?.[0]}
                                             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                             muted
                                             playsInline
+                                            preload="auto"
+                                            onLoadedMetadata={(e) => {
+                                                e.target.currentTime = 0.1; // Seek to frame to ensure thumbnail
+                                            }}
                                             onMouseOver={event => event.target.play()}
-                                            onMouseOut={event => event.target.pause()}
+                                            onMouseOut={event => {
+                                                event.target.pause();
+                                                event.target.currentTime = 0.1; // Reset to start frame
+                                            }}
                                         />
                                     ) : (
-                                        <img
-                                            src={post.imageUrls?.[0] || "/placeholder.svg"}
-                                            alt="Post preview"
-                                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                        />
+                                        <div className="relative w-full h-full">
+                                            <Image
+                                                src={(hasCover ? post.imageUrls?.[1] : post.imageUrls?.[0]) || "/placeholder.svg"}
+                                                alt="Post preview"
+                                                fill
+                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                sizes="(max-width: 768px) 33vw, 20vw"
+                                            />
+                                            {/* Overlay Play Icon if it's a Reel but we showing cover */}
+                                            {isReel && (
+                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
+                                                    <div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center border border-white/50">
+                                                        <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5"></div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
 
                                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -167,13 +201,15 @@ export default function AllPostsContent() {
                                         </div>
                                     </div>
                                     {/* Play icon overlay for reels when not hovering */}
-                                    {post.mediaType === 'REEL' && (
-                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-50 group-hover:opacity-0 transition-opacity">
-                                            <div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center border border-white/50">
-                                                <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5"></div>
+                                    {
+                                        post.mediaType === 'REEL' && (
+                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-50 group-hover:opacity-0 transition-opacity">
+                                                <div className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center border border-white/50">
+                                                    <div className="w-0 h-0 border-t-[5px] border-t-transparent border-l-[8px] border-l-white border-b-[5px] border-b-transparent ml-0.5"></div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )
+                                    }
                                 </div>
                             )
                         })
@@ -203,10 +239,12 @@ export default function AllPostsContent() {
                                                 className="w-full h-full object-contain"
                                             />
                                         ) : (
-                                            <img
+                                            <Image
                                                 src={previewPost.imageUrls?.[0] || "/placeholder.svg"}
                                                 alt="Post preview"
-                                                className="w-full h-full object-cover"
+                                                fill
+                                                className="object-cover"
+                                                sizes="(max-width: 768px) 100vw, 500px"
                                             />
                                         )}
                                     </div>
@@ -258,6 +296,6 @@ export default function AllPostsContent() {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-        </DashboardLayout>
+        </DashboardLayout >
     )
 }
