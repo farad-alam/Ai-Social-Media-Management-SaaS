@@ -208,4 +208,57 @@ export class InstagramClient {
 
         return publishData.id;
     }
+
+    static async publishCarousel(instagramId: string, imageUrls: string[], caption: string, accessToken: string) {
+        // 1. Create Items Containers
+        const itemIds = [];
+        for (const url of imageUrls) {
+            const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?is_carousel_item=true&image_url=${encodeURIComponent(url)}&access_token=${accessToken}`;
+            const createRes = await fetch(createUrl, { method: 'POST' });
+            const createData = await createRes.json();
+
+            if (createData.error) throw new Error(createData.error.message);
+            itemIds.push(createData.id);
+        }
+
+        // 2. Create Carousel Container
+        const createCarouselUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=CAROUSEL&caption=${encodeURIComponent(caption)}&children=${itemIds.join(',')}&access_token=${accessToken}`;
+        const carouselRes = await fetch(createCarouselUrl, { method: 'POST' });
+        const carouselData = await carouselRes.json();
+
+        if (carouselData.error) throw new Error(carouselData.error.message);
+
+        const creationId = carouselData.id;
+
+        // 2.5 Wait for Container Status (Carousels might need processing time)
+        let status = 'IN_PROGRESS';
+        let retries = 0;
+
+        while (status !== 'FINISHED' && retries < 10) {
+            await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+            const statusRes = await fetch(statusUrl);
+            const statusData = await statusRes.json();
+
+            if (statusData.status_code) {
+                status = statusData.status_code;
+            }
+            retries++;
+        }
+
+        if (status !== 'FINISHED') {
+            // Sometimes it might just stay in IN_PROGRESS but be publishable, or we timed out.
+            // We'll try to publish anyway if it's not explicitly failed, but logging would be good.
+            console.log(`Carousel status check timed out or not finished: ${status}`);
+        }
+
+        // 3. Publish Carousel Container
+        const publishUrl = `https://graph.facebook.com/v19.0/${instagramId}/media_publish?creation_id=${creationId}&access_token=${accessToken}`;
+        const publishRes = await fetch(publishUrl, { method: 'POST' });
+        const publishData = await publishRes.json();
+
+        if (publishData.error) throw new Error(publishData.error.message);
+
+        return publishData.id;
+    }
 }

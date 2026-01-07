@@ -45,7 +45,7 @@ export async function createPost(formData: FormData) {
             }
         })
 
-        const imageUrls = [imageUrl]
+        const imageUrls = formData.getAll('imageUrl') as string[]
         if (coverUrl) {
             imageUrls.push(coverUrl)
         }

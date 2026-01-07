@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Clock, Heart, MessageCircle, Trash2 } from "lucide-react"
+import { Clock, Heart, MessageCircle, Trash2, Layers, ChevronLeft, ChevronRight } from "lucide-react"
 import { getDashboardData } from "@/app/actions/dashboard"
 import { deletePost } from "@/app/actions/post"
 import { useToast } from "@/hooks/use-toast"
@@ -23,6 +23,7 @@ export default function AllPostsContent() {
     const [deletePostId, setDeletePostId] = useState(null)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [currentSlide, setCurrentSlide] = useState(0)
 
     useEffect(() => {
         async function loadData() {
@@ -42,6 +43,7 @@ export default function AllPostsContent() {
 
     const handlePostClick = (post) => {
         setPreviewPost(post)
+        setCurrentSlide(0)
         setIsPreviewOpen(true)
     }
 
@@ -180,6 +182,12 @@ export default function AllPostsContent() {
                                             )}
                                         </div>
 
+                                        {post.mediaType === 'CAROUSEL' && (
+                                            <div className="absolute top-2 right-8 p-1.5 bg-black/50 rounded-full z-10">
+                                                <Layers className="w-3.5 h-3.5 text-white" />
+                                            </div>
+                                        )}
+
                                         <button
                                             onClick={(e) => handleDeleteClick(e, post.id)}
                                             className="absolute top-2 right-2 p-1.5 bg-red-500/80 hover:bg-red-600 rounded-full transition-colors backdrop-blur-sm z-10 pointer-events-auto"
@@ -191,7 +199,7 @@ export default function AllPostsContent() {
                                             <div className="flex gap-4">
                                                 <div className="flex items-center gap-1">
                                                     <Heart className="w-4 h-4 fill-white" />
-                                                    <span className="font-bold text-xs">0</span>
+                                                    <span className="font-bold text-xs">{post.mediaType === 'CAROUSEL' ? '0' : '0'}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     <MessageCircle className="w-4 h-4 fill-white" />
@@ -231,7 +239,7 @@ export default function AllPostsContent() {
                                             <p className="text-xs text-muted-foreground">Original Audio</p>
                                         </div>
                                     </div>
-                                    <div className={`relative w-full bg-black ${previewPost.mediaType === 'REEL' ? 'aspect-[9/16]' : 'aspect-square'}`}>
+                                    <div className={`relative w-full bg-black group/preview ${previewPost.mediaType === 'REEL' ? 'aspect-[9/16]' : 'aspect-square'}`}>
                                         {previewPost.mediaType === 'REEL' ? (
                                             <video
                                                 src={previewPost.imageUrls?.[0]}
@@ -239,13 +247,48 @@ export default function AllPostsContent() {
                                                 className="w-full h-full object-contain"
                                             />
                                         ) : (
-                                            <Image
-                                                src={previewPost.imageUrls?.[0] || "/placeholder.svg"}
-                                                alt="Post preview"
-                                                fill
-                                                className="object-cover"
-                                                sizes="(max-width: 768px) 100vw, 500px"
-                                            />
+                                            <>
+                                                <Image
+                                                    src={previewPost.imageUrls?.[currentSlide] || "/placeholder.svg"}
+                                                    alt="Post preview"
+                                                    fill
+                                                    className="object-cover"
+                                                    sizes="(max-width: 768px) 100vw, 500px"
+                                                />
+                                                {previewPost.imageUrls?.length > 1 && (
+                                                    <>
+                                                        {currentSlide > 0 && (
+                                                            <button
+                                                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 p-1 rounded-full text-white hover:bg-black/70 transition-colors"
+                                                                onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
+                                                            >
+                                                                <ChevronLeft className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {currentSlide < previewPost.imageUrls.length - 1 && (
+                                                            <button
+                                                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 p-1 rounded-full text-white hover:bg-black/70 transition-colors"
+                                                                onClick={() => setCurrentSlide(prev => Math.min(previewPost.imageUrls.length - 1, prev + 1))}
+                                                            >
+                                                                <ChevronRight className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                                                            {previewPost.imageUrls.map((_, idx) => (
+                                                                <div
+                                                                    key={idx}
+                                                                    className={`w-1.5 h-1.5 rounded-full ${idx === currentSlide ? 'bg-blue-500' : 'bg-white/50'}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                )}
+                                                {previewPost.mediaType === 'CAROUSEL' && (
+                                                    <div className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full">
+                                                        <Layers className="w-4 h-4 text-white" />
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                     <div className="p-4 space-y-3">

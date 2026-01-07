@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X } from "lucide-react"
+import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
@@ -67,7 +67,8 @@ export default function CreatePostPage() {
   const [instagramProfile, setInstagramProfile] = useState(null)
 
   // New State for Reels
-  const [mediaType, setMediaType] = useState("IMAGE") // IMAGE, REEL, STORY
+  const [mediaType, setMediaType] = useState("IMAGE") // IMAGE, REEL, STORY, CAROUSEL
+  const [carouselItems, setCarouselItems] = useState([]) // { id, url, file }
   const [coverImage, setCoverImage] = useState(null)
   const [coverFile, setCoverFile] = useState(null)
   const [isCompressing, setIsCompressing] = useState(false)
@@ -181,6 +182,37 @@ export default function CreatePostPage() {
   }
 
   const handleImageUpload = async (e) => {
+    // Handle validation for Carousel limit
+    if (mediaType === 'CAROUSEL') {
+      const files = Array.from(e.target.files || [])
+      if (carouselItems.length + files.length > 20) {
+        toast({ title: "Limit Reached", description: "Max 20 images allowed.", variant: "destructive" })
+        return
+      }
+
+      setIsMediaLibraryOpen(false)
+      const newItems = []
+
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) continue
+
+        // Simple compression or direct use
+        let fileToUse = file
+        try {
+          fileToUse = await compressImage(file)
+        } catch (err) { console.error(err) }
+
+        const url = URL.createObjectURL(fileToUse)
+        newItems.push({ id: Math.random().toString(36), url, file: fileToUse })
+      }
+
+      if (newItems.length > 0) {
+        setCarouselItems(prev => [...prev, ...newItems])
+        setUploadedImage(newItems[0].url) // Set first as preview
+      }
+      return
+    }
+
     const file = e.target.files?.[0]
     if (file) {
       setIsMediaLibraryOpen(false)
@@ -335,7 +367,9 @@ export default function CreatePostPage() {
       return
     }
 
-    if (!uploadedImage) {
+    const hasMedia = mediaType === 'CAROUSEL' ? carouselItems.length > 0 : !!uploadedImage;
+
+    if (!hasMedia) {
       toast({ title: "Error", description: "Please upload or select media first", variant: "destructive" })
       return
     }
@@ -357,23 +391,43 @@ export default function CreatePostPage() {
 
   const submitPost = async (isScheduled) => {
     let finalImageUrl = uploadedImage
+    let finalImageUrls = []
 
-    // 1. Upload Main Media to Supabase ONLY if it's a new local file
-    if (fileToUpload) {
-      const ext = fileToUpload.name.split('.').pop()
-      const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+    if (mediaType === 'CAROUSEL') {
+      for (const item of carouselItems) {
+        let itemUrl = item.url
+        if (item.file) {
+          const ext = item.file.name.split('.').pop()
+          const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+          const { error: uploadError } = await supabase.storage
+            .from('posts')
+            .upload(cleanFileName, item.file)
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('posts')
-        .upload(cleanFileName, fileToUpload)
+          if (uploadError) throw uploadError
+          const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(cleanFileName)
+          itemUrl = publicUrl
+        }
+        finalImageUrls.push(itemUrl)
+      }
+      finalImageUrl = finalImageUrls[0]
+    } else {
+      // 1. Upload Main Media to Supabase ONLY if it's a new local file
+      if (fileToUpload) {
+        const ext = fileToUpload.name.split('.').pop()
+        const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
 
-      if (uploadError) throw uploadError
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(cleanFileName, fileToUpload)
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('posts')
-        .getPublicUrl(cleanFileName)
+        if (uploadError) throw uploadError
 
-      finalImageUrl = publicUrl
+        const { data: { publicUrl } } = supabase.storage
+          .from('posts')
+          .getPublicUrl(cleanFileName)
+
+        finalImageUrl = publicUrl
+      }
     }
 
     // 2. Upload Cover Image (if exists)
@@ -395,7 +449,13 @@ export default function CreatePostPage() {
     // 3. Create Post in DB
     const formData = new FormData()
     formData.append('caption', caption + " " + selectedHashtags.join(" "))
-    formData.append('imageUrl', finalImageUrl)
+
+    if (mediaType === 'CAROUSEL') {
+      finalImageUrls.forEach(url => formData.append('imageUrl', url))
+    } else {
+      formData.append('imageUrl', finalImageUrl)
+    }
+
     if (finalCoverUrl) {
       formData.append('coverUrl', finalCoverUrl)
     }
@@ -423,6 +483,7 @@ export default function CreatePostPage() {
       setDate(null)
       setScheduleTime("")
       setSelectedHashtags([])
+      setCarouselItems([])
     }
   }
 
@@ -433,7 +494,9 @@ export default function CreatePostPage() {
       return
     }
 
-    if (!uploadedImage) {
+    const hasMedia = mediaType === 'CAROUSEL' ? carouselItems.length > 0 : !!uploadedImage;
+
+    if (!hasMedia) {
       toast({ title: "Error", description: "Please upload or select media first", variant: "destructive" })
       return
     }
@@ -533,15 +596,65 @@ export default function CreatePostPage() {
               >
                 Story
               </button>
+              <button
+                onClick={() => {
+                  setMediaType("CAROUSEL")
+                  setUploadedImage(null)
+                  setFileToUpload(null)
+                  setCoverImage(null)
+                  setCoverFile(null)
+                  setCarouselItems([])
+                }}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
+                  mediaType === "CAROUSEL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Carousel
+              </button>
             </div>
 
             {/* Media Upload */}
             <Card className="p-6 bg-card border-border">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">
-                Media ({mediaType === "REEL" ? "Video" : mediaType === "STORY" ? "Image/Video" : "Image"})
+                Media ({mediaType === "REEL" ? "Video" : mediaType === "STORY" ? "Image/Video" : mediaType === "CAROUSEL" ? "Carousel (Max 20)" : "Image"})
               </h2>
 
-              {!uploadedImage ? (
+              {mediaType === 'CAROUSEL' ? (
+                <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                        {carouselItems.map((item, idx) => (
+                             <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden border border-border group bg-muted">
+                                 <Image src={item.url} alt="Carousel item" fill className="object-cover" />
+                                 <button
+                                    onClick={() => {
+                                        const newItems = carouselItems.filter(i => i.id !== item.id)
+                                        setCarouselItems(newItems)
+                                        setUploadedImage(newItems[0]?.url || null)
+                                    }}
+                                    className="absolute top-1 right-1 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                 >
+                                    <X className="w-3 h-3 text-white" />
+                                 </button>
+                                 <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] px-1.5 rounded z-10">{idx + 1}</div>
+                             </div>
+                        ))}
+                         {carouselItems.length < 20 && (
+                            <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors hover:bg-muted/50">
+                                <Plus className="w-6 h-6 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground mt-1">Add</span>
+                                <input type="file" multiple className="hidden" accept="image/*" onChange={handleImageUpload} />
+                            </label>
+                         )}
+                    </div>
+                     <div
+                        onClick={() => setIsMediaLibraryOpen(true)}
+                        className="flex items-center justify-center p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50"
+                     >
+                        <p className="text-sm text-muted-foreground">Select from Media Library</p>
+                     </div>
+                </div>
+              ) : !uploadedImage ? (
                 <div
                   onClick={() => setIsMediaLibraryOpen(true)}
                   className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
@@ -844,11 +957,18 @@ export default function CreatePostPage() {
                       />
                     </div>
                   ) : (
-                    <img
-                      src={uploadedImage || "/placeholder.svg"}
-                      alt="Preview"
-                      className={`w-full ${mediaType === 'STORY' ? 'aspect-[9/16]' : 'aspect-square'} object-cover rounded-lg mb-3`}
-                    />
+                    <div className="relative w-full aspect-square mb-3">
+                         <img
+                          src={uploadedImage || "/placeholder.svg"}
+                          alt="Preview"
+                          className={`w-full ${mediaType === 'STORY' ? 'aspect-[9/16]' : 'aspect-square'} object-cover rounded-lg`}
+                        />
+                        {mediaType === 'CAROUSEL' && (
+                            <div className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full z-10">
+                                <Layers className="w-4 h-4 text-white" />
+                            </div>
+                        )}
+                    </div>
                   )
                 ) : (
                   <div className={`w-full ${mediaType === 'REEL' || mediaType === 'STORY' ? 'aspect-[9/16] max-h-[400px]' : 'aspect-square'} bg-secondary rounded-lg mb-3 flex items-center justify-center transition-all`}>
@@ -958,6 +1078,12 @@ export default function CreatePostPage() {
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Media Library ({mediaType === "REEL" ? "Videos" : "Images"})</DialogTitle>
             <DialogDescription>Select a previously uploaded {mediaType === "REEL" ? "video" : "image"} or upload a new one</DialogDescription>
+            {mediaType === 'CAROUSEL' && (
+                <div className="flex justify-between items-center mt-2 bg-muted p-2 rounded-lg">
+                    <span className="text-sm font-medium">{carouselItems.length} selected (Max 20)</span>
+                    <Button size="sm" onClick={() => setIsMediaLibraryOpen(false)}>Done</Button>
+                </div>
+            )}
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -982,11 +1108,29 @@ export default function CreatePostPage() {
                   <div
                     key={idx}
                     onClick={() => {
-                      setUploadedImage(url)
-                      setFileToUpload(null)
-                      setIsMediaLibraryOpen(false)
+                      if (mediaType === 'CAROUSEL') {
+                           const isSelected = carouselItems.some(item => item.url === url)
+                           if (isSelected) {
+                               setCarouselItems(prev => prev.filter(item => item.url !== url))
+                           } else {
+                               if (carouselItems.length >= 20) {
+                                    toast({ title: "Limit Reached", description: "Max 20 images.", variant: "destructive" })
+                                    return
+                               }
+                               setCarouselItems(prev => [...prev, { id: Math.random().toString(36), url, file: null }])
+                               if (!uploadedImage) setUploadedImage(url)
+                           }
+                      } else {
+                          setUploadedImage(url)
+                          setFileToUpload(null)
+                          setIsMediaLibraryOpen(false)
+                      }
                     }}
-                    className="relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary transition-all group bg-muted"
+                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all group bg-muted ${
+                        mediaType === 'CAROUSEL' && carouselItems.some(item => item.url === url) 
+                        ? 'border-primary ring-2 ring-primary ring-offset-1' 
+                        : 'border-transparent hover:border-primary'
+                    }`}
                   >
                     {mediaType === 'REEL' ? (
                       <video src={url} className="w-full h-full object-cover" />
@@ -1000,8 +1144,12 @@ export default function CreatePostPage() {
                       />
                     )}
 
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <span className="text-white text-xs font-bold bg-primary/80 px-2 py-1 rounded">Select</span>
+                    <div className={`absolute inset-0 bg-black/40 ${mediaType === 'CAROUSEL' && carouselItems.some(i => i.url === url) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center transition-opacity`}>
+                       {mediaType === 'CAROUSEL' && carouselItems.some(i => i.url === url) ? (
+                           <Check className="w-8 h-8 text-white bg-primary rounded-full p-1.5" />
+                       ) : (
+                           <span className="text-white text-xs font-bold bg-primary/80 px-2 py-1 rounded">Select</span>
+                       )}
                     </div>
                   </div>
                 ))
