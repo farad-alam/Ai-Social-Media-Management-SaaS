@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check } from "lucide-react"
+import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check, Clapperboard, Smile, MapPin, ChevronUp, ChevronDown, Settings, Calendar as CalendarIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
@@ -539,550 +539,359 @@ export default function CreatePostPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Create Post</h1>
-          <p className="text-muted-foreground">Upload media, write captions, and schedule your Instagram content</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[calc(100vh-100px)] p-4">
+        <Card className="flex flex-col lg:flex-row w-full max-w-5xl h-[85vh] overflow-hidden bg-background border-border shadow-2xl rounded-xl">
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Left Column - Upload & Caption */}
-          <div className="space-y-6">
-            {/* Post Type Toggle */}
-            <div className="flex bg-muted p-1 rounded-lg">
-              <button
-                onClick={() => {
-                  setMediaType("IMAGE")
-                  setUploadedImage(null)
-                  setFileToUpload(null)
-                  setCoverImage(null)
-                  setCoverFile(null)
-                }}
-                className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                  mediaType === "IMAGE" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Post
-              </button>
-              <button
-                onClick={() => {
-                  setMediaType("REEL")
-                  setUploadedImage(null)
-                  setFileToUpload(null)
-                  setCoverImage(null)
-                  setCoverFile(null)
-                }}
-                className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                  mediaType === "REEL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Reel
-              </button>
-              <button
-                onClick={() => {
-                  setMediaType("STORY")
-                  setUploadedImage(null)
-                  setFileToUpload(null)
-                  setCoverImage(null)
-                  setCoverFile(null)
-                }}
-                className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                  mediaType === "STORY" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Story
-              </button>
-              <button
-                onClick={() => {
-                  setMediaType("CAROUSEL")
-                  setUploadedImage(null)
-                  setFileToUpload(null)
-                  setCoverImage(null)
-                  setCoverFile(null)
-                  setCarouselItems([])
-                }}
-                className={cn(
-                  "flex-1 py-2 text-sm font-medium rounded-md transition-all",
-                  mediaType === "CAROUSEL" ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Carousel
-              </button>
-            </div>
+          {/* LEFT COLUMN: Media Preview / Upload */}
+          <div className="lg:w-[60%] flex flex-col bg-black/5 relative justify-center items-center border-r border-border overflow-hidden">
 
-            {/* Media Upload */}
-            <Card className="p-6 bg-card border-border">
-              <h2 className="text-lg font-semibold text-card-foreground mb-4">
-                Media ({mediaType === "REEL" ? "Video" : mediaType === "STORY" ? "Image/Video" : mediaType === "CAROUSEL" ? "Carousel (Max 20)" : "Image"})
-              </h2>
-
-              {mediaType === 'CAROUSEL' ? (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-2">
-                        {carouselItems.map((item, idx) => (
-                             <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden border border-border group bg-muted">
-                                 <Image src={item.url} alt="Carousel item" fill className="object-cover" />
-                                 <button
-                                    onClick={() => {
-                                        const newItems = carouselItems.filter(i => i.id !== item.id)
-                                        setCarouselItems(newItems)
-                                        setUploadedImage(newItems[0]?.url || null)
-                                    }}
-                                    className="absolute top-1 right-1 p-1 bg-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                 >
-                                    <X className="w-3 h-3 text-white" />
-                                 </button>
-                                 <div className="absolute bottom-1 left-1 bg-black/50 text-white text-[10px] px-1.5 rounded z-10">{idx + 1}</div>
-                             </div>
-                        ))}
-                         {carouselItems.length < 20 && (
-                            <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors hover:bg-muted/50">
-                                <Plus className="w-6 h-6 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground mt-1">Add</span>
-                                <input type="file" multiple className="hidden" accept="image/*" onChange={handleImageUpload} />
-                            </label>
-                         )}
-                    </div>
-                     <div
-                        onClick={() => setIsMediaLibraryOpen(true)}
-                        className="flex items-center justify-center p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50"
-                     >
-                        <p className="text-sm text-muted-foreground">Select from Media Library</p>
-                     </div>
-                </div>
-              ) : !uploadedImage ? (
-                <div
-                  onClick={() => setIsMediaLibraryOpen(true)}
-                  className="flex flex-col items-center justify-center w-full h-80 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
-                >
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-12 h-12 text-muted-foreground mb-4" />
-                    <p className="mb-2 text-sm text-card-foreground">
-                      <span className="font-semibold">Click to select from Library</span> or upload new
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {mediaType === 'REEL' ? "Upload MP4, MOV (Max 3 min)" : mediaType === 'STORY' ? "Upload Image or Video (Max 60s, 9:16)" : "Upload JPG, PNG"}
-                    </p>
+            {/* Empty State / Upload Trigger */}
+            {(!uploadedImage && carouselItems.length === 0) ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-20" />
+                  <div className="relative bg-background p-6 rounded-full shadow-lg border border-border">
+                    {mediaType === 'REEL' ? <Clapperboard className="w-10 h-10 text-primary" /> :
+                      mediaType === 'STORY' ? <Clock className="w-10 h-10 text-primary" /> :
+                        mediaType === 'CAROUSEL' ? <Layers className="w-10 h-10 text-primary" /> :
+                          <ImageIcon className="w-10 h-10 text-primary" />}
                   </div>
                 </div>
-              ) : (
-                <div className="relative">
-                  {mediaType === 'REEL' || (mediaType === 'STORY' && uploadedImage?.toString().startsWith('blob:') && !fileToUpload?.type.startsWith('image/')) ? (
+                <h3 className="text-xl font-semibold mb-2">Create new post</h3>
+                <p className="text-muted-foreground mb-6 max-w-xs">{mediaType === 'CAROUSEL' ? 'Select multiple images for your carousel' : 'Drag photos and videos here or click to select from your library'}</p>
+
+                <Button
+                  onClick={() => setIsMediaLibraryOpen(true)}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg px-8 py-6 text-base font-semibold"
+                >
+                  Select from computer
+                </Button>
+                <p className="text-xs text-muted-foreground mt-8 opacity-50">
+                  {mediaType === 'REEL' && "Reels: 9:16, Max 3 min"}
+                  {mediaType === 'STORY' && "Stories: 9:16, Max 60s"}
+                  {mediaType === 'CAROUSEL' && "Carousel: up to 20 images"}
+                  {mediaType === 'IMAGE' && "Posts: 1:1 or 4:5"}
+                </p>
+              </div>
+            ) : (
+              /* Media Preview State */
+              <div className="relative w-full h-full flex items-center justify-center bg-zinc-950">
+                {/* Media Display */}
+                {mediaType === 'CAROUSEL' ? (
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <img
+                      src={uploadedImage}
+                      alt="Current slide"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                    {/* Carousel Controls Overlay */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-[90%] p-2 bg-black/50 backdrop-blur-sm rounded-xl">
+                      {carouselItems.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          onClick={() => setUploadedImage(item.url)}
+                          className={cn(
+                            "w-10 h-10 relative flex-shrink-0 cursor-pointer rounded-md overflow-hidden border-2 transition-all",
+                            uploadedImage === item.url ? "border-primary opacity-100" : "border-transparent opacity-50 hover:opacity-100"
+                          )}
+                        >
+                          <Image src={item.url} fill className="object-cover" alt="thumb" />
+                        </div>
+                      ))}
+                      {carouselItems.length < 20 && (
+                        <label className="w-10 h-10 flex items-center justify-center border border-white/20 rounded-md cursor-pointer hover:bg-white/10 text-white">
+                          <Plus className="w-5 h-5" />
+                          <input type="file" multiple className="hidden" accept="image/*" onChange={handleImageUpload} />
+                        </label>
+                      )}
+                    </div>
+                    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-white" />
+                      <span className="text-white text-xs font-medium">{carouselItems.length}/20</span>
+                    </div>
+                  </div>
+                ) : (
+                  mediaType === 'REEL' || (mediaType === 'STORY' && uploadedImage?.toString().startsWith('blob:') && fileToUpload?.type?.startsWith('video/')) ? (
                     <video
                       src={uploadedImage}
+                      className="w-full h-full object-contain"
                       controls
-                      className={`w-full ${mediaType === 'REEL' || mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'} object-cover rounded-lg bg-black`}
                     />
-                  ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http')) ? (
-                    <div className={`relative w-full ${mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'}`}>
+                  ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http') && mediaType === 'REEL') ? (
+                    <video
+                      src={uploadedImage}
+                      className="w-full h-full object-contain"
+                      controls
+                    />
+                  ) : (
+                    <div className="relative w-full h-full">
                       <Image
                         src={uploadedImage}
-                        alt="Uploaded content"
+                        alt="Preview"
                         fill
-                        className="object-cover rounded-lg"
-                        sizes="(max-width: 768px) 100vw, 500px"
+                        className="object-contain"
                       />
                     </div>
-                  ) : (
-                    <img
-                      src={uploadedImage || "/placeholder.svg"}
-                      alt="Uploaded content"
-                      className={`w-full ${mediaType === 'STORY' ? 'h-[500px] aspect-[9/16]' : 'h-80'} object-cover rounded-lg`}
-                    />
-                  )}
+                  )
+                )}
 
+                {/* Quick remove/reset action */}
+                <div className="absolute top-4 left-4 z-10">
                   <Button
-                    variant="destructive"
+                    variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 z-10"
+                    className="bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-sm"
                     onClick={() => {
                       setUploadedImage(null)
+                      setCarouselItems([])
                       setFileToUpload(null)
                       setCoverImage(null)
                       setCoverFile(null)
                     }}
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                   </Button>
+                </div>
 
-                  {isCompressing && (
-                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-lg">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2"></div>
-                      <p className="text-white text-sm font-medium">Compressing Video...</p>
+                {isCompressing && (
+                  <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary mb-4"></div>
+                    <p className="text-white font-medium">Optimizing media...</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN: Details & Settings */}
+          <div className="lg:w-[40%] flex flex-col bg-background h-full">
+
+            {/* Header / Top Bar */}
+            <div className="h-16 border-b border-border flex items-center justify-between px-4 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
+                  <img src={instagramProfile?.picture || "/placeholder.svg"} className="w-full h-full object-cover" alt="Profile" />
+                </div>
+                <span className="font-semibold text-sm">{instagramProfile?.username || "your_username"}</span>
+              </div>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
+
+              {/* 1. Post Type Selector */}
+              <div className="bg-muted/50 p-1 rounded-lg grid grid-cols-4 gap-1">
+                {['IMAGE', 'REEL', 'STORY', 'CAROUSEL'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setMediaType(type)
+                      // Only reset if switching between drastically different types if needed, 
+                      // but for now we keep it simple or maybe verify compatibility? 
+                      // Let's simplify: reset strictly if moving to carousel or standard.
+                      if (type === 'CAROUSEL' && mediaType !== 'CAROUSEL') setCarouselItems([])
+                      if (mediaType === 'CAROUSEL' && type !== 'CAROUSEL') setCarouselItems([])
+                    }}
+                    className={cn(
+                      "flex flex-col items-center justify-center py-2 rounded-md text-[10px] font-medium transition-all gap-1",
+                      mediaType === type ? "bg-background shadow text-foreground" : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                    )}
+                  >
+                    {type === 'IMAGE' && <ImageIcon className="w-4 h-4" />}
+                    {type === 'REEL' && <Clapperboard className="w-4 h-4" />}
+                    {type === 'STORY' && <Clock className="w-4 h-4" />}
+                    {type === 'CAROUSEL' && <Layers className="w-4 h-4" />}
+                    {type === 'IMAGE' ? 'Post' : type.charAt(0) + type.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+
+              {/* 2. Caption Area */}
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs font-medium opacity-70 mb-1.5 block">Write topic to generate caption</Label>
+                      <Input
+                        placeholder="e.g. Summer sale announcement..."
+                        className="h-8 text-xs bg-muted/30"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary"
+                      onClick={handleGenerateCaption}
+                      disabled={isGeneratingAI}
+                    >
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      {isGeneratingAI ? "Writing..." : "Generate"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="relative mt-2">
+                  <Textarea
+                    placeholder="Write a caption..."
+                    value={caption}
+                    onChange={e => setCaption(e.target.value)}
+                    className="min-h-[140px] resize-none border-0 focus-visible:ring-0 bg-transparent p-0 text-base placeholder:text-muted-foreground/40 leading-relaxed"
+                  />
+                  <div className="absolute bottom-0 right-0 flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">{caption.length}/2200</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 border-t border-border/50 pt-3">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><Smile className="w-5 h-5" /></Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-80"><p className="text-sm text-muted-foreground p-2">Emoji picker coming soon</p></PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><Hash className="w-5 h-5" /></Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-64 p-3">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-xs">Suggested</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {suggestedHashtags.map(tag => (
+                            <Badge key={tag} variant="secondary" className="cursor-pointer hover:bg-primary/20" onClick={() => {
+                              setCaption(prev => prev + " " + tag);
+                              toggleHashtag(tag);
+                            }}>
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <div className="border-l border-border mx-1 h-6 self-center" />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground text-xs"><MapPin className="w-4 h-4 mr-1" /> Add Location</Button>
+                    </PopoverTrigger>
+                    <PopoverContent>
+                      <Input placeholder="Search location..." />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="h-px bg-border my-2" />
+
+              {/* 3. Settings Accordions */}
+              <div className="space-y-0 divide-y divide-border">
+                {/* Schedule Accordion */}
+                <div className="py-2">
+                  <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex w-full items-center justify-between py-2 text-sm font-medium hover:text-primary transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>Schedule for later</span>
+                    </div>
+                    {isCalendarOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                  {isCalendarOpen && (
+                    <div className="pt-4 pb-2 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-xs h-9", !date && "text-muted-foreground")}>
+                                <CalendarIcon className="mr-2 h-3 w-3" />
+                                {date ? format(date, "PPP") : "Pick date"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarPicker mode="single" selected={date} onSelect={setDate} disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Time</Label>
+                          <Input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="h-9 text-xs" />
+                        </div>
+                      </div>
+                      {date && scheduleTime && (
+                        <p className="text-xs text-muted-foreground bg-primary/10 p-2 rounded flex items-center gap-2">
+                          <Clock className="w-3 h-3 text-primary" />
+                          Will post on {format(date, "MMM d")} at {scheduleTime}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* Reel Cover Upload */}
+                {/* Advanced Settings Checkbox / Accordion */}
+                <div className="py-2">
+                  <div className="flex items-center justify-between py-2 text-sm text-muted-foreground cursor-not-allowed">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      <span>Advanced Settings</span>
+                    </div>
+                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">Coming Soon</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Reel Cover specific */}
               {mediaType === 'REEL' && uploadedImage && (
-                <div className="mt-4 pt-4 border-t border-border">
-                  <Label className="mb-2 block font-medium">Cover Photo (Optional)</Label>
-                  <div className="flex items-start gap-4">
-                    <div className={`relative w-20 h-32 bg-muted rounded border border-border flex items-center justify-center overflow-hidden flex-shrink-0`}>
-                      {coverImage ? (
-                        <>
-                          <Image src={coverImage} alt="Cover" fill className="object-cover" />
-                          <button
-                            className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full p-0.5"
-                            onClick={() => { setCoverImage(null); setCoverFile(null); }}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </>
-                      ) : (
-                        <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                      )}
+                <div className="bg-muted/30 p-3 rounded-lg border border-border mt-4">
+                  <Label className="text-xs font-semibold mb-2 block">Cover Photo</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-12 h-20 bg-black rounded overflow-hidden flex-shrink-0">
+                      {coverImage ? <Image src={coverImage} fill alt="cover" className="object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="w-4 h-4 text-white/50" /></div>}
                     </div>
                     <div className="flex-1">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverUpload}
-                        className="mb-2 text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground">Upload a thumbnail for your reel. If skipped, the first frame will be used.</p>
+                      <label className="text-xs text-primary cursor-pointer hover:underline">
+                        Upload custom cover
+                        <input type="file" hidden accept="image/*" onChange={handleCoverUpload} />
+                      </label>
                     </div>
                   </div>
                 </div>
               )}
-            </Card>
 
-            {/* Caption & AI */}
-            <Card className="p-6 bg-card border-border">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-card-foreground">Caption</h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateCaption}
-                  disabled={isAnySubmitting}
-                  className="border-border text-foreground bg-transparent"
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  {isGeneratingAI ? "Generating..." : "AI Generate"}
-                </Button>
-              </div>
+            </div>
 
-              <div className="grid gap-4 mb-4">
-                <div>
-                  <Label className="mb-2 block">Topic / Title</Label>
-                  <Input
-                    placeholder="e.g. New Summer Collection Launch"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    className="bg-background border-input text-foreground"
-                  />
-                </div>
-
-                <div>
-                  <Label className="mb-2 block">Tone</Label>
-                  <Select value={tone} onValueChange={setTone}>
-                    <SelectTrigger className="bg-background border-input text-foreground">
-                      <SelectValue placeholder="Select tone" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="funny">Funny</SelectItem>
-                      <SelectItem value="casual">Casual</SelectItem>
-                      <SelectItem value="inspirational">Inspirational</SelectItem>
-                      <SelectItem value="sales">Sales / Promotional</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Textarea
-                placeholder="Write your caption here..."
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                className="min-h-32 bg-background border-input text-foreground resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-2">{caption.length} / 2200 characters</p>
-            </Card>
-
-            {/* Hashtags */}
-            {/*
-            <Card className="p-6 bg-card border-border">
-              <div className="flex items-center gap-2 mb-4">
-                <Hash className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold text-card-foreground">Hashtag Suggestions</h2>
-              </div>
-
-              
-              <div className="flex flex-wrap gap-2">
-                {suggestedHashtags.map((hashtag) => (
-                  <Badge
-                    key={hashtag}
-                    variant={selectedHashtags.includes(hashtag) ? "default" : "outline"}
-                    className={`cursor-pointer transition-all ${selectedHashtags.includes(hashtag)
-                      ? "bg-primary text-primary-foreground"
-                      : "border-border text-foreground hover:border-primary/50"
-                      }`}
-                    onClick={() => toggleHashtag(hashtag)}
-                  >
-                    {hashtag}
-                  </Badge>
-                ))}
-              </div>
-              
-
-              {selectedHashtags.length > 0 && (
-                <div className="mt-4 p-3 bg-secondary rounded-lg">
-                  <p className="text-sm text-secondary-foreground">Selected: {selectedHashtags.join(" ")}</p>
-                </div>
-              )}
-            </Card>
-            */}
-          </div>
-
-          {/* Right Column - Schedule & Preview */}
-          <div className="space-y-6">
-            {/* Schedule */}
-            <Card className="p-6 bg-card border-border">
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="w-5 h-5 text-accent" />
-                <h2 className="text-lg font-semibold text-card-foreground">Schedule Post</h2>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-1 space-y-2">
-                    <Label className="text-card-foreground block">
-                      Select Date
-                    </Label>
-                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal bg-background border-input",
-                            !date && "text-muted-foreground"
-                          )}
-                        >
-                          <Calendar className="mr-2 h-4 w-4" />
-                          {date ? format(date, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-popover" align="start">
-                        <CalendarPicker
-                          mode="single"
-                          selected={date}
-                          onSelect={(newDate) => {
-                            setDate(newDate)
-                            setIsCalendarOpen(false)
-                          }}
-                          disabled={(date) =>
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="flex-1 space-y-2">
-                    <Label className="text-card-foreground block">
-                      Select Time
-                    </Label>
-                    <Input
-                      type="time"
-                      value={scheduleTime}
-                      onChange={(e) => setScheduleTime(e.target.value)}
-                      className="bg-background border-input text-foreground"
-                    />
-                  </div>
-                </div>
-
-                <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-card-foreground">Best Time to Post</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Based on your audience, we recommend posting between 10 AM - 2 PM
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Preview */}
-            <Card className="p-6 bg-card border-border">
-              <div className="flex items-center gap-2 mb-4">
-                <ImageIcon className="w-5 h-5 text-chart-3" />
-                <h2 className="text-lg font-semibold text-card-foreground">Instagram Preview</h2>
-              </div>
-
-              <div className="bg-background border border-border rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-full overflow-hidden">
-                    <img
-                      src={instagramProfile?.picture || "/placeholder.svg"}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{instagramProfile?.username || "your_username"}</p>
-                    <p className="text-xs text-muted-foreground">Just now</p>
-                  </div>
-                </div>
-
-                {uploadedImage ? (
-                  mediaType === 'REEL' || (mediaType === 'STORY' && fileToUpload?.type?.startsWith('video/')) ? (
-                    <div className="flex justify-center bg-black rounded-lg mb-3">
-                      <video
-                        src={uploadedImage}
-                        className="h-[400px] w-auto aspect-[9/16] object-cover rounded-lg"
-                        controls={false}
-                        autoPlay
-                        loop
-                        muted
-                      />
-                    </div>
-                  ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http')) ? (
-                    <div className={`relative w-full ${mediaType === 'STORY' ? 'aspect-[9/16]' : 'aspect-square'} mb-3`}>
-                      <Image
-                        src={uploadedImage}
-                        alt="Preview"
-                        fill
-                        className="object-cover rounded-lg"
-                        sizes="(max-width: 768px) 100vw, 300px"
-                      />
-                    </div>
-                  ) : (
-                    <div className="relative w-full aspect-square mb-3">
-                         <img
-                          src={uploadedImage || "/placeholder.svg"}
-                          alt="Preview"
-                          className={`w-full ${mediaType === 'STORY' ? 'aspect-[9/16]' : 'aspect-square'} object-cover rounded-lg`}
-                        />
-                        {mediaType === 'CAROUSEL' && (
-                            <div className="absolute top-2 right-2 bg-black/60 p-1.5 rounded-full z-10">
-                                <Layers className="w-4 h-4 text-white" />
-                            </div>
-                        )}
-                    </div>
-                  )
-                ) : (
-                  <div className={`w-full ${mediaType === 'REEL' || mediaType === 'STORY' ? 'aspect-[9/16] max-h-[400px]' : 'aspect-square'} bg-secondary rounded-lg mb-3 flex items-center justify-center transition-all`}>
-                    <ImageIcon className="w-12 h-12 text-muted-foreground" />
-                  </div>
-                )}
-
-                <p className="text-sm text-foreground line-clamp-3">{caption || "Your caption will appear here..."}</p>
-                {selectedHashtags.length > 0 && (
-                  <p className="text-sm text-primary mt-2">{selectedHashtags.join(" ")}</p>
-                )}
-              </div>
-
-              <Button
-                className="w-full mt-4 bg-accent text-accent-foreground hover:bg-accent/90"
-                onClick={() => setShowPreview(true)}
-              >
-                Full Preview
-              </Button>
-            </Card>
-
-            {/* Actions */}
-            <div className="flex gap-4">
+            {/* Footer Actions */}
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-border mt-auto bg-background/95 backdrop-blur z-10">
               <Button
                 variant="outline"
-                className="flex-1 border-border text-foreground bg-transparent"
                 onClick={handleSaveDraft}
-                disabled={isAnySubmitting}
+                disabled={isAnySubmitting || (!uploadedImage && carouselItems.length === 0)}
               >
-                {isSavingDraft ? "Saving..." : "Save Draft"}
+                Save Draft
               </Button>
               <Button
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={handleSchedulePost}
-                disabled={isAnySubmitting}
+                onClick={date && scheduleTime ? handleSchedulePost : () => submitPost(false)}
+                disabled={isAnySubmitting || (!uploadedImage && carouselItems.length === 0)}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[100px]"
               >
-                {isScheduling ? "Scheduling..." : "Schedule Post"}
+                {isScheduling ? "Scheduling..." : (date && scheduleTime && scheduleTime !== "") ? "Schedule" : "Share"}
               </Button>
             </div>
+
           </div>
-        </div>
+
+        </Card>
       </div>
 
-      {/* Full Preview Modal */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-md max-h-[90vh] flex flex-col bg-card p-0">
-          <DialogHeader className="p-4 border-b border-border">
-            <DialogTitle className="text-card-foreground">Instagram Post Preview</DialogTitle>
-            <DialogDescription>This is how your post will appear on Instagram</DialogDescription>
-          </DialogHeader>
-
-          <div className="overflow-y-auto p-4">
-            <div className="bg-background border border-border rounded-lg p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full overflow-hidden">
-                  <img
-                    src={instagramProfile?.picture || "/placeholder.svg"}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">{instagramProfile?.username || "your_username"}</p>
-                  <p className="text-xs text-muted-foreground">Just now</p>
-                </div>
-              </div>
-
-              {uploadedImage && (
-                mediaType === 'REEL' ? (
-                  <video
-                    src={uploadedImage}
-                    controls
-                    autoPlay
-                    className="w-full aspect-[9/16] object-cover rounded-lg mb-3 bg-black"
-                  />
-                ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http')) ? (
-                  <div className="relative w-full aspect-square mb-3">
-                    <Image
-                      src={uploadedImage}
-                      alt="Preview"
-                      fill
-                      className="object-cover rounded-lg"
-                      sizes="(max-width: 768px) 100vw, 500px"
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={uploadedImage || "/placeholder.svg"}
-                    alt="Preview"
-                    className="w-full aspect-square object-cover rounded-lg mb-3"
-                  />
-                )
-              )}
-
-              <div className="space-y-2">
-                <p className="text-sm text-foreground">{caption || "Your caption will appear here..."}</p>
-                {selectedHashtags.length > 0 && <p className="text-sm text-primary">{selectedHashtags.join(" ")}</p>}
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Media Library Modal */}
+      {/* Media Library Modal (Keep as is) */}
       <Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen}>
         <DialogContent className="max-w-4xl bg-card max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Media Library ({mediaType === "REEL" ? "Videos" : "Images"})</DialogTitle>
             <DialogDescription>Select a previously uploaded {mediaType === "REEL" ? "video" : "image"} or upload a new one</DialogDescription>
             {mediaType === 'CAROUSEL' && (
-                <div className="flex justify-between items-center mt-2 bg-muted p-2 rounded-lg">
-                    <span className="text-sm font-medium">{carouselItems.length} selected (Max 20)</span>
-                    <Button size="sm" onClick={() => setIsMediaLibraryOpen(false)}>Done</Button>
-                </div>
+              <div className="flex justify-between items-center mt-2 bg-muted p-2 rounded-lg">
+                <span className="text-sm font-medium">{carouselItems.length} selected (Max 20)</span>
+                <Button size="sm" onClick={() => setIsMediaLibraryOpen(false)}>Done</Button>
+              </div>
             )}
           </DialogHeader>
 
@@ -1109,28 +918,28 @@ export default function CreatePostPage() {
                     key={idx}
                     onClick={() => {
                       if (mediaType === 'CAROUSEL') {
-                           const isSelected = carouselItems.some(item => item.url === url)
-                           if (isSelected) {
-                               setCarouselItems(prev => prev.filter(item => item.url !== url))
-                           } else {
-                               if (carouselItems.length >= 20) {
-                                    toast({ title: "Limit Reached", description: "Max 20 images.", variant: "destructive" })
-                                    return
-                               }
-                               setCarouselItems(prev => [...prev, { id: Math.random().toString(36), url, file: null }])
-                               if (!uploadedImage) setUploadedImage(url)
-                           }
+                        const isSelected = carouselItems.some(item => item.url === url)
+                        if (isSelected) {
+                          setCarouselItems(prev => prev.filter(item => item.url !== url))
+                        } else {
+                          if (carouselItems.length >= 20) {
+                            toast({ title: "Limit Reached", description: "Max 20 images.", variant: "destructive" })
+                            return
+                          }
+                          const newItem = { id: Math.random().toString(36), url, file: null };
+                          setCarouselItems(prev => [...prev, newItem])
+                          setUploadedImage(url);
+                        }
                       } else {
-                          setUploadedImage(url)
-                          setFileToUpload(null)
-                          setIsMediaLibraryOpen(false)
+                        setUploadedImage(url)
+                        setFileToUpload(null)
+                        setIsMediaLibraryOpen(false)
                       }
                     }}
-                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all group bg-muted ${
-                        mediaType === 'CAROUSEL' && carouselItems.some(item => item.url === url) 
-                        ? 'border-primary ring-2 ring-primary ring-offset-1' 
-                        : 'border-transparent hover:border-primary'
-                    }`}
+                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all group bg-muted ${mediaType === 'CAROUSEL' && carouselItems.some(item => item.url === url)
+                      ? 'border-primary ring-2 ring-primary ring-offset-1'
+                      : 'border-transparent hover:border-primary'
+                      }`}
                   >
                     {mediaType === 'REEL' ? (
                       <video src={url} className="w-full h-full object-cover" />
@@ -1145,11 +954,11 @@ export default function CreatePostPage() {
                     )}
 
                     <div className={`absolute inset-0 bg-black/40 ${mediaType === 'CAROUSEL' && carouselItems.some(i => i.url === url) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} flex items-center justify-center transition-opacity`}>
-                       {mediaType === 'CAROUSEL' && carouselItems.some(i => i.url === url) ? (
-                           <Check className="w-8 h-8 text-white bg-primary rounded-full p-1.5" />
-                       ) : (
-                           <span className="text-white text-xs font-bold bg-primary/80 px-2 py-1 rounded">Select</span>
-                       )}
+                      {mediaType === 'CAROUSEL' && carouselItems.some(i => i.url === url) ? (
+                        <Check className="w-8 h-8 text-white bg-primary rounded-full p-1.5" />
+                      ) : (
+                        <span className="text-white text-xs font-bold bg-primary/80 px-2 py-1 rounded">Select</span>
+                      )}
                     </div>
                   </div>
                 ))
