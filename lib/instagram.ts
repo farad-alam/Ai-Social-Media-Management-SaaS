@@ -261,4 +261,18 @@ export class InstagramClient {
 
         return publishData.id;
     }
+
+    static async getInstagramPosts(instagramId: string, accessToken: string, limit: number = 24) {
+        const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,children{media_url,thumbnail_url,media_type}";
+        const url = `https://graph.facebook.com/v19.0/${instagramId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        return data.data || [];
+    }
 }
