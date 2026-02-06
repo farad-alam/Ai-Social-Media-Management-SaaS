@@ -53,15 +53,22 @@ export async function GET(request: Request) {
 
         // Upsert Account
         await prisma.account.upsert({
-            where: { instagramId: accountDetails.instagramId },
+            where: {
+                provider_providerAccountId: {
+                    provider: 'INSTAGRAM',
+                    providerAccountId: accountDetails.instagramId
+                }
+            },
             update: {
                 accessToken: longToken,
                 username: profile.username || accountDetails.username,
                 picture: profile.profile_picture_url,
-                userId: userId // Move ownership if it existed? Or just update token.
+                userId: userId,
+                updatedAt: new Date()
             },
             create: {
-                instagramId: accountDetails.instagramId,
+                provider: 'INSTAGRAM',
+                providerAccountId: accountDetails.instagramId,
                 accessToken: longToken,
                 username: profile.username || accountDetails.username,
                 picture: profile.profile_picture_url,

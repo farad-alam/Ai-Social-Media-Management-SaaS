@@ -46,19 +46,38 @@ export async function createPost(formData: FormData) {
         })
 
         const imageUrls = formData.getAll('imageUrl') as string[]
-        if (coverUrl) {
-            imageUrls.push(coverUrl)
+        // Do not mix coverUrl into imageUrls array for logic, but maybe for storage tracking? 
+        // Existing logic seemed to push it. Keeping that behavior if it was intentional, but usually cover is separate.
+        // Actually, schema usually expects the content images. Let's keep it clean.
+
+        const accountIdsJson = formData.get('accountIds') as string
+        let accountIds: string[] = []
+        if (accountIdsJson) {
+            try {
+                accountIds = JSON.parse(accountIdsJson)
+            } catch (e) {
+                console.error("Failed to parse accountIds", e)
+            }
         }
 
+        // If no accounts selected, maybe default to all connected? Or force selection in UI?
+        // For now, if empty, it's just a draft with no destinations.
+
         // 2. Create Post
-        await prisma.post.create({
+        const newPost = await prisma.post.create({
             data: {
                 userId,
                 caption,
                 imageUrls,
                 scheduledAt,
-                status,
-                mediaType
+                status: status as any, // Cast to generic or Enum if fixed
+                mediaType,
+                destinations: {
+                    create: accountIds.map(accId => ({
+                        accountId: accId,
+                        status: status === 'SCHEDULED' ? 'SCHEDULED' : 'DRAFT'
+                    }))
+                }
             }
         })
 

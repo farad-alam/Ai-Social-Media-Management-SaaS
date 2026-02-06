@@ -16,29 +16,84 @@ model User {
   createdAt DateTime @default(now())
 }
 
-model Post {
-  id          String   @id @default(uuid())
-  caption     String
-  imageUrls   String[]
-  scheduledAt DateTime?
-  status      String   @default("DRAFT") // DRAFT, SCHEDULED, PUBLISHED, FAILED
-  mediaType   String   @default("IMAGE") // IMAGE, REEL
-  user        User     @relation(fields: [userId], references: [id])
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  instagramPostId String?
+enum SocialProvider {
+  INSTAGRAM
+  PINTEREST
+  TIKTOK
+}
+
+enum PublishStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  PUBLISHED
+  FAILED
 }
 
 model Account {
-  id           String @id @default(uuid())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  instagramId  String   @unique
-  accessToken  String
-  username     String?
-  picture      String?
-  user         User     @relation(fields: [userId], references: [id])
-  userId       String
+  id                String         @id @default(uuid())
+  userId            String
+  user              User           @relation(fields: [userId], references: [id])
+  
+  // Generic Provider Fields
+  provider          SocialProvider
+  providerAccountId String         // ID from the platform (e.g., IG Business ID, Pinterest User ID)
+  accessToken       String
+  refreshToken      String?        // Crucial for Pinterest/TikTok
+  expiresAt         DateTime?      // Token expiration
+  
+  // profile info
+  username          String?
+  picture           String?
+  
+  // Platform specific config (e.g. default Pinterest Board)
+  platformMetadata  Json?          
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
+  postDestinations  PostDestination[]
+
+  @@unique([provider, providerAccountId])
+}
+
+model Post {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  // Content
+  caption       String?
+  imageUrls     String[] 
+  mediaType     String   @default("IMAGE") // IMAGE, VIDEO, CAROUSEL
+  
+  // Scheduler Master
+  scheduledAt   DateTime?
+  status        PublishStatus @default(DRAFT) // Master status
+  
+  // Destinations
+  destinations  PostDestination[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Deprecated - keeping for temporary safety during migration if needed, but intended to be replaced by destinations
+  instagramPostId String?
+}
+
+model PostDestination {
+  id            String        @id @default(uuid())
+  postId        String
+  post          Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  accountId     String
+  account       Account       @relation(fields: [accountId], references: [id])
+  
+  status        PublishStatus @default(SCHEDULED)
+  platformPostId String?      // The ID returned by the API after success
+  errorMessage  String?       
+  
+  platformOptions Json?       // { boardId: "123" }
+  
+  publishedAt   DateTime?
 }

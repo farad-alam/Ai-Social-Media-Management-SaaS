@@ -15,9 +15,9 @@ import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Ch
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
-import { getInstagramStatus } from "@/app/actions/instagram"
-import { generateCaption } from "@/app/actions/ai"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+import { getAllAccounts } from "@/app/actions/accounts"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarPicker } from "@/components/ui/calendar"
 import { format } from "date-fns"
@@ -41,6 +41,9 @@ const suggestedHashtags = [
   "#summer",
 ]
 
+
+
+
 export default function CreatePostPage() {
   const { toast } = useToast()
   const router = useRouter()
@@ -59,6 +62,9 @@ export default function CreatePostPage() {
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+
+  const [accounts, setAccounts] = useState([])
+  const [selectedAccountIds, setSelectedAccountIds] = useState([])
 
   // Derived state for general disabling
   const isAnySubmitting = isScheduling || isSavingDraft || isGeneratingAI
@@ -95,13 +101,30 @@ export default function CreatePostPage() {
     })
     setFfmpegLoaded(true)
 
-    // Load Instagram Profile
-    const status = await getInstagramStatus()
-    if (status.isConnected) {
+    // Load Instagram Profile (Legacy) & All Accounts
+    const fetchedAccounts = await getAllAccounts()
+    setAccounts(fetchedAccounts)
+
+    // Default select all? Or just first? Let's default to selecting all for convenience or just IG.
+    if (fetchedAccounts.length > 0) {
+      setSelectedAccountIds(fetchedAccounts.map(a => a.id))
+    }
+
+    const igAccount = fetchedAccounts.find(a => a.provider === 'INSTAGRAM')
+    if (igAccount) {
       setInstagramProfile({
-        username: status.username,
-        picture: status.picture
+        username: igAccount.username,
+        picture: igAccount.picture
       })
+    } else {
+      // Try fallback to old action if needed, but getAllAccounts covers it.
+      const status = await getInstagramStatus()
+      if (status.isConnected) {
+        setInstagramProfile({
+          username: status.username,
+          picture: status.picture
+        })
+      }
     }
   }
 
@@ -449,6 +472,7 @@ export default function CreatePostPage() {
     // 3. Create Post in DB
     const formData = new FormData()
     formData.append('caption', caption + " " + selectedHashtags.join(" "))
+    formData.append('accountIds', JSON.stringify(selectedAccountIds))
 
     if (mediaType === 'CAROUSEL') {
       finalImageUrls.forEach(url => formData.append('imageUrl', url))
@@ -679,7 +703,41 @@ export default function CreatePostPage() {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
 
-              {/* 1. Post Type Selector */}
+              {/* 1. Account Selector (New) */}
+              <div className="p-4 bg-muted/30 rounded-lg space-y-3 mb-4">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <Layers className="w-4 h-4" /> Post To
+                </h3>
+                <div className="space-y-2">
+                  {accounts.length === 0 ? (
+                    <div className="text-xs text-muted-foreground">No accounts connected. <a href="/connect" className="underline">Connect now</a></div>
+                  ) : (
+                    accounts.map(acc => (
+                      <div key={acc.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={acc.id}
+                          checked={selectedAccountIds.includes(acc.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedAccountIds([...selectedAccountIds, acc.id])
+                            } else {
+                              setSelectedAccountIds(selectedAccountIds.filter(id => id !== acc.id))
+                            }
+                          }}
+                        />
+                        <Label htmlFor={acc.id} className="text-sm flex items-center gap-2 cursor-pointer">
+                          {acc.provider === 'INSTAGRAM' && <Instagram className="w-3 h-3 text-pink-500" />}
+                          {acc.provider === 'PINTEREST' && <div className="w-3 h-3 rounded-full bg-red-600 flex items-center justify-center text-white text-[8px] font-bold">P</div>}
+                          {acc.provider === 'TIKTOK' && <div className="w-3 h-3 rounded-full bg-black flex items-center justify-center text-white text-[8px] font-bold">T</div>}
+                          <span className="truncate max-w-[150px]">{acc.username || acc.provider}</span>
+                        </Label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Post Type Selector */}
               <div className="bg-muted/50 p-1 rounded-lg grid grid-cols-4 gap-1">
                 {['IMAGE', 'REEL', 'STORY', 'CAROUSEL'].map((type) => (
                   <button

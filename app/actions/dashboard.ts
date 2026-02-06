@@ -14,8 +14,16 @@ export async function getDashboardData() {
         const posts = await prisma.post.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
-            take: 10
+            take: 10,
+            include: {
+                destinations: {
+                    include: {
+                        account: true
+                    }
+                }
+            }
         })
+
 
         const totalPosts = await prisma.post.count({ where: { userId } })
         const scheduledPostsCount = await prisma.post.count({
@@ -51,7 +59,11 @@ export async function getDashboardData() {
             posts: posts.map(p => ({
                 ...p,
                 scheduledFor: p.scheduledAt ? p.scheduledAt.toLocaleString() : 'Not scheduled',
-                image: p.imageUrls[0] || null
+                image: p.imageUrls[0] || null,
+                destinations: p.destinations.map(d => ({
+                    provider: d.account.provider,
+                    status: d.status
+                }))
             }))
         }
     } catch (error) {

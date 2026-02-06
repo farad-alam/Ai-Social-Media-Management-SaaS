@@ -7,6 +7,7 @@ import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Instagram } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -35,9 +36,36 @@ export function CalendarView({ posts = [], onRefresh }) {
             imageUrl: post.imageUrls?.[0],
             status: post.status,
             caption: post.caption,
-            scheduledAt: post.scheduledAt
+            scheduledAt: post.scheduledAt,
+            destinations: post.destinations || []
         }
     }))
+
+    const renderEventContent = (eventInfo) => {
+        const { title, extendedProps } = eventInfo.event
+        const destinations = extendedProps.destinations || []
+
+        const hasInstagram = destinations.some(d => d.provider === 'INSTAGRAM')
+        const hasPinterest = destinations.some(d => d.provider === 'PINTEREST')
+        const hasTikTok = destinations.some(d => d.provider === 'TIKTOK')
+
+        return (
+            <div className="flex flex-col gap-1 p-1 w-full overflow-hidden">
+                <div className="flex items-center gap-1 text-xs truncate font-semibold">
+                    {title}
+                </div>
+                <div className="flex items-center gap-1">
+                    {/* Show Icons if specific per post */}
+                    {hasInstagram && <Instagram className="w-3 h-3" />}
+                    {hasPinterest && <div className="w-3 h-3 rounded-full bg-red-600 flex items-center justify-center text-white text-[8px] font-bold">P</div>}
+                    {hasTikTok && <div className="w-3 h-3 rounded-full bg-black flex items-center justify-center text-white text-[8px] font-bold">T</div>}
+
+                    {/* Fallback if no specific destinations (legacy posts) - assume IG */}
+                    {destinations.length === 0 && <Instagram className="w-3 h-3" />}
+                </div>
+            </div>
+        )
+    }
 
     const handleEventDrop = async (info) => {
         // Optimistic update handled by FullCalendar automatically for the UI
@@ -165,6 +193,7 @@ export function CalendarView({ posts = [], onRefresh }) {
                         events={events}
                         eventDrop={handleEventDrop}
                         eventClick={handleEventClick}
+                        eventContent={renderEventContent}
                         height="auto"
                     />
                 </div>

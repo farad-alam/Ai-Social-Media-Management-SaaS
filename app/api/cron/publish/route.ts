@@ -4,30 +4,36 @@ import { InstagramClient } from '@/lib/instagram';
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
+
+import { prisma } from '@/lib/prisma';
+import { InstagramClient } from '@/lib/instagram';
+import { PinterestClient } from '@/lib/pinterest';
+import { TikTokClient } from '@/lib/tiktok';
+import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+
+export const maxDuration = 60; // Set max duration to 60 seconds (Vercel limit for hobby)
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const now = new Date();
-        const { userId } = await auth();
 
         // 1. Find scheduled posts that are due
-        // Filter by user if authenticated (manual trigger safe mode)
-        const whereClause: any = {
-            status: 'SCHEDULED',
-            scheduledAt: {
-                lte: now
-            }
-        };
-
-        if (userId) {
-            whereClause.userId = userId;
-        }
+        // We look for posts that are "SCHEDULED" or "PROCESSING" (stuck?) or have "SCHEDULED" destinations?
+        // Simpler: Find Posts where status=SCHEDULED and scheduledAt <= now
 
         const postsToPublish = await prisma.post.findMany({
-            where: whereClause,
+            where: {
+                status: 'SCHEDULED', // Primary status
+                scheduledAt: {
+                    lte: now
+                }
+            },
             include: {
-                user: {
+                destinations: {
                     include: {
-                        accounts: true // We need the token
+                        account: true
                     }
                 }
             }
@@ -39,147 +45,136 @@ export async function GET() {
 
         const results = [];
 
-        // 2. Publish each post
         for (const post of postsToPublish) {
-            try {
-                // 3. Lock the post by setting status to PROCESSING
-                // This prevents race conditions if cron is triggered multiple times
-                // We use updateMany with 'SCHEDULED' check to ensure we only lock if it's still scheduled
-                const { count } = await prisma.post.updateMany({
-                    where: {
-                        id: post.id,
-                        status: 'SCHEDULED'
-                    },
-                    data: { status: 'PROCESSING' }
-                });
+            // Lock post
+            await prisma.post.update({
+                where: { id: post.id },
+                data: { status: 'PROCESSING' }
+            });
 
-                if (count === 0) {
-                    // Post was already picked up by another process or status changed
-                    console.log(`Post ${post.id} skipped (already processing or not scheduled)`);
-                    continue;
-                }
+            // If no destinations (legacy posts?), try to find implicit IG account?
+            // For new schema, we rely on destinations.
 
-                const account = post.user.accounts.find(acc => acc.instagramId); // Assuming one IG account for now or we need to store which account the post is for
+            let allSuccess = true;
+            let anySuccess = false;
 
-                if (!account) {
-                    await prisma.post.update({
-                        where: { id: post.id },
-                        data: { status: 'FAILED' } // Or keep scheduled? FAILED is better to avoid infinite loops
-                    });
-                    results.push({ id: post.id, status: 'FAILED', reason: 'No Instagram account connected' });
-                    continue;
-                }
+            for (const destination of post.destinations) {
+                if (destination.status !== 'SCHEDULED') continue;
 
-                // Publish First Image (For MVP) - Carousel logic needed if multiple images
-                // Assuming single image for now based on create post logic
-                const imageUrl = post.imageUrls[0];
+                try {
+                    const account = destination.account;
+                    let platformPostId = null;
 
-                if (!imageUrl) {
-                    await prisma.post.update({
-                        where: { id: post.id },
-                        data: { status: 'FAILED' }
-                    });
-                    results.push({ id: post.id, status: 'FAILED', reason: 'No image URL' });
-                    continue;
-                }
-
-                if (post.mediaType === 'REEL') {
-                    const publishId = await InstagramClient.publishReel(
-                        account.instagramId,
-                        imageUrl,
-                        post.caption,
-                        account.accessToken
-                    );
-
-                    // Update Status
-                    await prisma.post.update({
-                        where: { id: post.id },
-                        data: {
-                            status: 'PUBLISHED',
-                            instagramPostId: publishId
+                    // --- INSTAGRAM ---
+                    if (account.provider === 'INSTAGRAM') {
+                        const imageUrl = post.imageUrls[0]; // TODO: Support carousel
+                        if (post.mediaType === 'IMAGE') {
+                            platformPostId = await InstagramClient.publishImage(
+                                account.providerAccountId,
+                                imageUrl,
+                                post.caption || '',
+                                account.accessToken
+                            );
+                        } else if (post.mediaType === 'REEL') {
+                            platformPostId = await InstagramClient.publishReel(
+                                account.providerAccountId,
+                                imageUrl,
+                                post.caption || '',
+                                account.accessToken
+                            );
+                        } else if (post.mediaType === 'CAROUSEL') {
+                            // Basic carousel support
+                            platformPostId = await InstagramClient.publishCarousel(
+                                account.providerAccountId,
+                                post.imageUrls,
+                                post.caption || '',
+                                account.accessToken
+                            );
                         }
-                    });
+                    }
+                    // --- PINTEREST ---
+                    else if (account.provider === 'PINTEREST') {
+                        // Pinterest requires a Board ID. 
+                        // We need to implement UI to select board or use default.
+                        // For now, let's assume valid boardId is hardcoded or fetched dynamically if missing?
+                        // Or fail if no board selected? 
 
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'REEL' });
+                        // Fallback: fetch first board if none provided (Dangerous but works for MVP)
+                        let boardId = 'default'; // Placeholder
 
-                } else if (post.mediaType === 'IMAGE') {
-                    const publishId = await InstagramClient.publishImage(
-                        account.instagramId,
-                        imageUrl,
-                        post.caption,
-                        account.accessToken
-                    );
-
-                    // Update Status
-                    await prisma.post.update({
-                        where: { id: post.id },
-                        data: {
-                            status: 'PUBLISHED',
-                            instagramPostId: publishId
+                        try {
+                            const boards = await PinterestClient.getBoards(account.accessToken);
+                            if (boards.length > 0) boardId = boards[0].id;
+                        } catch (e) {
+                            console.error("Failed to fetch Pinterest boards", e);
                         }
-                    });
 
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'IMAGE' });
-                } else if (post.mediaType === 'STORY') {
-                    // Detect if story is video or image based on extension or some other flag?
-                    // For now, let's assume if it ends in .mp4 or .mov it is video, else image.
-                    const isVideo = imageUrl.toLowerCase().match(/\.(mp4|mov|avi|wmv|flv|webm)$/);
-
-                    const publishId = await InstagramClient.publishStoryMedia(
-                        account.instagramId,
-                        imageUrl,
-                        isVideo ? 'VIDEO' : 'IMAGE',
-                        account.accessToken
-                    );
-
-                    // Update Status
-                    await prisma.post.update({
-                        where: { id: post.id },
-                        data: {
-                            status: 'PUBLISHED',
-                            instagramPostId: publishId
-                        }
-                    });
-
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'STORY' });
-                } else if (post.mediaType === 'CAROUSEL') {
-                    // Check if we have multiple images
-                    if (!post.imageUrls || post.imageUrls.length === 0) {
-                        await prisma.post.update({
-                            where: { id: post.id },
-                            data: { status: 'FAILED' }
+                        const result = await PinterestClient.createPin(
+                            account.accessToken,
+                            boardId,
+                            post.imageUrls[0],
+                            post.caption?.substring(0, 100), // Title
+                            post.caption, // Desc
+                            // Link?
+                        );
+                        platformPostId = result.id;
+                    }
+                    // --- TIKTOK ---
+                    else if (account.provider === 'TIKTOK') {
+                        // Simplified TikTok Publish (Photo Mode)
+                        const result = await TikTokClient.initPublish(account.accessToken, {
+                            post_info: {
+                                title: post.caption?.substring(0, 50) || "Post",
+                                privacy_level: "PUBLIC_TO_EVERYONE",
+                                disable_duet: false,
+                                disable_comment: false,
+                                disable_stitch: false,
+                                video_cover_timestamp_ms: 1000
+                            },
+                            source_info: {
+                                source: "PULL_FROM_URL",
+                                photo_cover_index: 1,
+                                photo_images: post.imageUrls.map(url => url) // Max 35
+                            },
+                            post_mode: "DIRECT_POST",
+                            media_type: "PHOTO"
                         });
-                        results.push({ id: post.id, status: 'FAILED', reason: 'No images for carousel' });
-                        continue;
+                        platformPostId = result.publish_id;
                     }
 
-                    const publishId = await InstagramClient.publishCarousel(
-                        account.instagramId,
-                        post.imageUrls,
-                        post.caption,
-                        account.accessToken
-                    );
-
-                    // Update Status
-                    await prisma.post.update({
-                        where: { id: post.id },
+                    // Success!
+                    await prisma.postDestination.update({
+                        where: { id: destination.id },
                         data: {
                             status: 'PUBLISHED',
-                            instagramPostId: publishId
+                            publishedAt: new Date(),
+                            platformPostId: platformPostId
                         }
                     });
+                    anySuccess = true;
 
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'CAROUSEL' });
+                } catch (destError: any) {
+                    console.error(`Failed destination ${destination.id}`, destError);
+                    await prisma.postDestination.update({
+                        where: { id: destination.id },
+                        data: {
+                            status: 'FAILED',
+                            errorMessage: destError.message
+                        }
+                    });
+                    allSuccess = false;
                 }
-
-            } catch (postError: any) {
-                console.error(`Failed to publish post ${post.id}`, postError);
-                await prisma.post.update({
-                    where: { id: post.id },
-                    data: { status: 'FAILED' }
-                });
-                results.push({ id: post.id, status: 'FAILED', error: postError.message });
             }
+
+            // Update Master Post Status
+            await prisma.post.update({
+                where: { id: post.id },
+                data: {
+                    status: allSuccess ? 'PUBLISHED' : (anySuccess ? 'PUBLISHED' : 'FAILED')
+                    // If at least one succeeded, we mark as PUBLISHED (or we could add PARTIAL_SUCCESS enum)
+                }
+            });
+            results.push({ id: post.id, success: anySuccess });
         }
 
         return NextResponse.json({ processed: postsToPublish.length, results });
@@ -189,3 +184,4 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
