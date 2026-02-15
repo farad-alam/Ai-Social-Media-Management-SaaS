@@ -119,7 +119,7 @@ export default function RootLayout({
           {/* <link rel="canonical" href="https://bismillah-auto.netlify.app" /> */}
           <link rel="icon" type="image/svg+xml" href="/favicon.png" />
         </head>
-        <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+        <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
           {children}
           <Analytics />
           <Toaster />

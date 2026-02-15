@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check, Clapperboard, Smile, MapPin, ChevronUp, ChevronDown, Settings, Calendar as CalendarIcon } from "lucide-react"
+import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check, Clapperboard, Smile, MapPin, ChevronUp, ChevronDown, Settings, Calendar as CalendarIcon, Instagram } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
@@ -20,6 +20,7 @@ import { getAllAccounts } from "@/app/actions/accounts"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarPicker } from "@/components/ui/calendar"
+import { ToastAction } from "@/components/ui/toast"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -103,11 +104,29 @@ export default function CreatePostPage() {
 
     // Load Instagram Profile (Legacy) & All Accounts
     const fetchedAccounts = await getAllAccounts()
-    setAccounts(fetchedAccounts)
 
-    // Default select all? Or just first? Let's default to selecting all for convenience or just IG.
-    if (fetchedAccounts.length > 0) {
-      setSelectedAccountIds(fetchedAccounts.map(a => a.id))
+    // Define all supported providers
+    const SUPPORTED_PROVIDERS = ['INSTAGRAM', 'PINTEREST', 'TIKTOK']
+
+    // Identify missing providers
+    const connectedProviders = fetchedAccounts.map(a => a.provider)
+    const missingProviders = SUPPORTED_PROVIDERS.filter(p => !connectedProviders.includes(p))
+
+    // Create placeholder accounts for missing ones
+    const placeholders = missingProviders.map(provider => ({
+      id: `placeholder_${provider}`,
+      provider,
+      username: `${provider.charAt(0) + provider.slice(1).toLowerCase()} (Not Connected)`,
+      isConnected: false
+    }))
+
+    // Combine for display
+    const allDisplayAccounts = [...fetchedAccounts.map(a => ({ ...a, isConnected: true })), ...placeholders]
+    setAccounts(allDisplayAccounts)
+
+    // Default select ALL accounts (connected and placeholders) as per user request
+    if (allDisplayAccounts.length > 0) {
+      setSelectedAccountIds(allDisplayAccounts.map(a => a.id))
     }
 
     const igAccount = fetchedAccounts.find(a => a.provider === 'INSTAGRAM')
@@ -405,14 +424,41 @@ export default function CreatePostPage() {
         description: "Your post has been saved as a draft.",
       })
     } catch (error) {
-      console.error(error)
-      toast({ title: "Error", description: "Failed to save draft.", variant: "destructive" })
+      // Error handled in submitPost or caught here
+      if (error.message !== 'Validation Failed') {
+        console.error(error)
+        toast({ title: "Error", description: error.message || "Failed to save draft.", variant: "destructive" })
+      }
     } finally {
       setIsSavingDraft(false)
     }
   }
 
   const submitPost = async (isScheduled) => {
+    // 0. Validate Selected Accounts (New)
+    const selectedAccountsData = accounts.filter(a => selectedAccountIds.includes(a.id))
+    const disconnectedAccounts = selectedAccountsData.filter(a => !a.isConnected)
+
+    if (disconnectedAccounts.length > 0) {
+      const names = disconnectedAccounts.map(a => a.provider).join(", ")
+      toast({
+        title: "Connect Account First",
+        description: `You selected ${names} but have not connected them yet. Please connect to publish.`,
+        variant: "destructive",
+        action: (
+          <ToastAction altText="Connect Now" onClick={() => window.location.href = '/connect'}>
+            Connect Now
+          </ToastAction>
+        )
+      })
+      throw new Error("Validation Failed")
+    }
+
+    if (selectedAccountIds.length === 0) {
+      toast({ title: "No Platform Selected", description: "Please select at least one platform to publish to.", variant: "destructive" })
+      throw new Error("Validation Failed")
+    }
+
     let finalImageUrl = uploadedImage
     let finalImageUrls = []
 
@@ -554,8 +600,10 @@ export default function CreatePostPage() {
         variant: "default"
       })
     } catch (error) {
-      console.error(error)
-      toast({ title: "Error", description: error.message || "Failed to create post.", variant: "destructive" })
+      if (error.message !== 'Validation Failed') {
+        console.error(error)
+        toast({ title: "Error", description: error.message || "Failed to create post.", variant: "destructive" })
+      }
     } finally {
       setIsScheduling(false)
     }
@@ -713,7 +761,7 @@ export default function CreatePostPage() {
                     <div className="text-xs text-muted-foreground">No accounts connected. <a href="/connect" className="underline">Connect now</a></div>
                   ) : (
                     accounts.map(acc => (
-                      <div key={acc.id} className="flex items-center space-x-2">
+                      <div key={acc.id} className={cn("flex items-center space-x-2", !acc.isConnected && "grayscale opacity-70")}>
                         <Checkbox
                           id={acc.id}
                           checked={selectedAccountIds.includes(acc.id)}
@@ -725,11 +773,12 @@ export default function CreatePostPage() {
                             }
                           }}
                         />
-                        <Label htmlFor={acc.id} className="text-sm flex items-center gap-2 cursor-pointer">
+                        <Label htmlFor={acc.id} className="text-sm flex items-center gap-2 cursor-pointer w-full">
                           {acc.provider === 'INSTAGRAM' && <Instagram className="w-3 h-3 text-pink-500" />}
                           {acc.provider === 'PINTEREST' && <div className="w-3 h-3 rounded-full bg-red-600 flex items-center justify-center text-white text-[8px] font-bold">P</div>}
                           {acc.provider === 'TIKTOK' && <div className="w-3 h-3 rounded-full bg-black flex items-center justify-center text-white text-[8px] font-bold">T</div>}
-                          <span className="truncate max-w-[150px]">{acc.username || acc.provider}</span>
+                          <span className="truncate max-w-[150px]">{acc.isConnected ? acc.username : acc.provider}</span>
+                          {!acc.isConnected && <span className="text-[10px] bg-muted-foreground/20 px-1 rounded ml-auto">Connect</span>}
                         </Label>
                       </div>
                     ))
