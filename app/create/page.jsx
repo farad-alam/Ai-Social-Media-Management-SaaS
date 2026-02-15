@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check, Clapperboard, Smile, MapPin, ChevronUp, ChevronDown, Settings, Calendar as CalendarIcon } from "lucide-react"
+import { Upload, Sparkles, Hash, Calendar, Clock, ImageIcon, X, Layers, Plus, Check, Clapperboard, Smile, MapPin, ChevronUp, ChevronDown, Settings, Calendar as CalendarIcon, AlertTriangle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
 import { getInstagramStatus } from "@/app/actions/instagram"
@@ -59,12 +60,14 @@ export default function CreatePostPage() {
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [isGeneratingAI, setIsGeneratingAI] = useState(false)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
 
   // Derived state for general disabling
   const isAnySubmitting = isScheduling || isSavingDraft || isGeneratingAI
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [mediaLibrary, setMediaLibrary] = useState([])
   const [instagramProfile, setInstagramProfile] = useState(null)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
   // New State for Reels
   const [mediaType, setMediaType] = useState("IMAGE") // IMAGE, REEL, STORY, CAROUSEL
@@ -96,12 +99,18 @@ export default function CreatePostPage() {
     setFfmpegLoaded(true)
 
     // Load Instagram Profile
-    const status = await getInstagramStatus()
-    if (status.isConnected) {
-      setInstagramProfile({
-        username: status.username,
-        picture: status.picture
-      })
+    try {
+      const status = await getInstagramStatus()
+      if (status.isConnected) {
+        setInstagramProfile({
+          username: status.username,
+          picture: status.picture
+        })
+      }
+    } catch (error) {
+      console.error("Failed to load Instagram profile", error)
+    } finally {
+      setLoadingProfile(false)
     }
   }
 
@@ -362,6 +371,7 @@ export default function CreatePostPage() {
 
   const handleSaveDraft = async () => {
     if (isAnySubmitting) return
+    if (!checkConnection()) return
     if (isCompressing) {
       toast({ title: "Wait!", description: "Video is still compressing.", variant: "destructive" })
       return
@@ -487,8 +497,22 @@ export default function CreatePostPage() {
     }
   }
 
+  const checkConnection = () => {
+    if (!instagramProfile) {
+      toast({
+        title: "Instagram Not Connected",
+        description: "Please connect your Instagram account first.",
+        variant: "destructive",
+        action: <ToastAction altText="Connect" onClick={() => router.push('/connect-instagram')}>Connect</ToastAction>
+      })
+      return false
+    }
+    return true
+  }
+
   const handleSchedulePost = async () => {
     if (isAnySubmitting) return
+    if (!checkConnection()) return
     if (isCompressing) {
       toast({ title: "Wait!", description: "Video is still compressing.", variant: "destructive" })
       return
@@ -672,7 +696,17 @@ export default function CreatePostPage() {
                 <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
                   <img src={instagramProfile?.picture || "/placeholder.svg"} className="w-full h-full object-cover" alt="Profile" />
                 </div>
-                <span className="font-semibold text-sm">{instagramProfile?.username || "your_username"}</span>
+                <span className="font-semibold text-sm">{instagramProfile?.username || "Not Connected"}</span>
+                {!instagramProfile && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                    onClick={() => router.push('/connect-instagram')}
+                  >
+                    Connect
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -742,43 +776,7 @@ export default function CreatePostPage() {
                     <span className="text-[10px] text-muted-foreground">{caption.length}/2200</span>
                   </div>
                 </div>
-                <div className="flex gap-2 border-t border-border/50 pt-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><Smile className="w-5 h-5" /></Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-80"><p className="text-sm text-muted-foreground p-2">Emoji picker coming soon</p></PopoverContent>
-                  </Popover>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"><Hash className="w-5 h-5" /></Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-64 p-3">
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-xs">Suggested</h4>
-                        <div className="flex flex-wrap gap-1">
-                          {suggestedHashtags.map(tag => (
-                            <Badge key={tag} variant="secondary" className="cursor-pointer hover:bg-primary/20" onClick={() => {
-                              setCaption(prev => prev + " " + tag);
-                              toggleHashtag(tag);
-                            }}>
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <div className="border-l border-border mx-1 h-6 self-center" />
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground text-xs"><MapPin className="w-4 h-4 mr-1" /> Add Location</Button>
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <Input placeholder="Search location..." />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+
               </div>
 
               <div className="h-px bg-border my-2" />
@@ -799,7 +797,7 @@ export default function CreatePostPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <Label className="text-xs">Date</Label>
-                          <Popover>
+                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                             <PopoverTrigger asChild>
                               <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-xs h-9", !date && "text-muted-foreground")}>
                                 <CalendarIcon className="mr-2 h-3 w-3" />
@@ -807,7 +805,16 @@ export default function CreatePostPage() {
                               </Button>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
-                              <CalendarPicker mode="single" selected={date} onSelect={setDate} disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))} initialFocus />
+                              <CalendarPicker
+                                mode="single"
+                                selected={date}
+                                onSelect={(d) => {
+                                  setDate(d)
+                                  if (d) setIsDatePickerOpen(false)
+                                }}
+                                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                                initialFocus
+                              />
                             </PopoverContent>
                           </Popover>
                         </div>
@@ -868,7 +875,15 @@ export default function CreatePostPage() {
                 Save Draft
               </Button>
               <Button
-                onClick={date && scheduleTime ? handleSchedulePost : () => submitPost(false)}
+                onClick={() => {
+                  if (date && scheduleTime) {
+                    handleSchedulePost()
+                  } else {
+                    if (checkConnection()) {
+                      submitPost(false)
+                    }
+                  }
+                }}
                 disabled={isAnySubmitting || (!uploadedImage && carouselItems.length === 0)}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[100px]"
               >
