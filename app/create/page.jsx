@@ -994,7 +994,7 @@ export default function CreatePostPage() {
                   <Upload className="w-8 h-8 text-primary mb-2" />
                   <span className="text-xs font-semibold">Upload New</span>
                 </div>
-                <input type="file" className="hidden" accept={mediaType === 'REEL' ? "video/*" : "image/*"} onChange={handleImageUpload} />
+                <input type="file" className="hidden" multiple={mediaType === 'CAROUSEL'} accept={mediaType === 'REEL' ? "video/*" : "image/*"} onChange={handleImageUpload} />
               </label>
 
               {/* Library Images */}
