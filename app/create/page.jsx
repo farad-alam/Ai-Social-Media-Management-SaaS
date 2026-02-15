@@ -78,6 +78,11 @@ export default function CreatePostPage() {
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false)
   const ffmpegRef = useRef(null)
 
+  // Video Cover Selection State
+  const [videoDuration, setVideoDuration] = useState(0)
+  const [currentFrameTime, setCurrentFrameTime] = useState(0)
+  const hiddenVideoRef = useRef(null)
+
   useEffect(() => {
     load()
   }, [])
@@ -174,8 +179,8 @@ export default function CreatePostPage() {
 
       await ffmpeg.writeFile(inputName, await fetchFile(file))
 
-      // Compress video: scale to 720p height, crf 28 (good tradeoff), preset faster
-      await ffmpeg.exec(['-i', inputName, '-vf', 'scale=-2:720', '-c:v', 'libx264', '-crf', '28', '-preset', 'faster', outputName])
+      // Compress video: scale to 720p height, crf 30 (faster), preset ultrafast
+      await ffmpeg.exec(['-i', inputName, '-vf', 'scale=-2:720', '-c:v', 'libx264', '-crf', '30', '-preset', 'ultrafast', outputName])
 
       const data = await ffmpeg.readFile(outputName)
       const compressedBlob = new Blob([data], { type: 'video/mp4' })
@@ -300,11 +305,16 @@ export default function CreatePostPage() {
             const url = URL.createObjectURL(file)
             setUploadedImage(url)
 
-            // Compress Video
-            toast({ title: "Compressing Video", description: "Please wait while we optimize your reel..." })
-            const compressed = await compressVideo(file)
-            setFileToUpload(compressed)
-            toast({ title: "Video Optimized", description: "Ready for upload!" })
+            // Compress Video only if > 20MB
+            if (file.size > 20 * 1024 * 1024) {
+              toast({ title: "Compressing Video", description: "Large video detected. Optimizing..." })
+              const compressed = await compressVideo(file)
+              setFileToUpload(compressed)
+              toast({ title: "Video Optimized", description: "Ready for upload!" })
+            } else {
+              setFileToUpload(file)
+              toast({ title: "Video Ready", description: "Small video, skipping compression." })
+            }
 
           } catch (error) {
             console.error("Video compression failed", error)
@@ -341,6 +351,41 @@ export default function CreatePostPage() {
     } else if (file) {
       toast({ title: "Invalid File", description: "Please upload an image for the cover.", variant: "destructive" })
     }
+  }
+
+  // Handle Video Metadata for Cover Selection
+  const onVideoMetadataLoaded = (e) => {
+    setVideoDuration(e.target.duration)
+    setCurrentFrameTime(0)
+  }
+
+  // Handle Video Time Update / Slider Change
+  const handleVideoTimeChange = (e) => {
+    const time = parseFloat(e.target.value)
+    setCurrentFrameTime(time)
+    if (hiddenVideoRef.current) {
+      hiddenVideoRef.current.currentTime = time
+    }
+  }
+
+  // Capture Frame when seek completes
+  const handleSeeked = () => {
+    const video = hiddenVideoRef.current
+    if (!video) return
+
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], "cover-frame.jpg", { type: "image/jpeg" })
+        setCoverFile(file)
+        setCoverImage(URL.createObjectURL(blob))
+      }
+    }, 'image/jpeg', 0.8)
   }
 
   const handleGenerateCaption = async () => {
@@ -849,20 +894,51 @@ export default function CreatePostPage() {
               {mediaType === 'REEL' && uploadedImage && (
                 <div className="bg-muted/30 p-3 rounded-lg border border-border mt-4">
                   <Label className="text-xs font-semibold mb-2 block">Cover Photo</Label>
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-12 h-20 bg-black rounded overflow-hidden flex-shrink-0">
-                      {coverImage ? <Image src={coverImage} fill alt="cover" className="object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="w-4 h-4 text-white/50" /></div>}
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs text-primary cursor-pointer hover:underline">
-                        Upload custom cover
-                        <input type="file" hidden accept="image/*" onChange={handleCoverUpload} />
-                      </label>
+
+                  {/* Hidden Video for Frame Extraction */}
+                  <video
+                    ref={hiddenVideoRef}
+                    src={uploadedImage} // Uses the same source as the preview
+                    className="hidden"
+                    onLoadedMetadata={onVideoMetadataLoaded}
+                    onSeeked={handleSeeked}
+                    muted
+                  />
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-4">
+                      <div className="relative w-12 h-20 bg-black rounded overflow-hidden flex-shrink-0 border border-border">
+                        {coverImage ? <Image src={coverImage} fill alt="cover" className="object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="w-4 h-4 text-white/50" /></div>}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-[10px] text-muted-foreground">Select from video</Label>
+                          <input
+                            type="range"
+                            min="0"
+                            max={videoDuration}
+                            step="0.1"
+                            value={currentFrameTime}
+                            onChange={handleVideoTimeChange}
+                            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary"
+                          />
+                          <div className="flex justify-between text-[10px] text-muted-foreground/50">
+                            <span>0:00</span>
+                            <span>{videoDuration ? new Date(videoDuration * 1000).toISOString().substr(14, 5) : "0:00"}</span>
+                          </div>
+                        </div>
+
+                        <div className="pt-1">
+                          <label className="text-xs text-primary cursor-pointer hover:underline flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" /> Upload custom cover
+                            <input type="file" hidden accept="image/*" onChange={handleCoverUpload} />
+                          </label>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-
             </div>
 
             {/* Footer Actions */}
@@ -891,13 +967,13 @@ export default function CreatePostPage() {
               </Button>
             </div>
 
-          </div>
+          </div >
 
-        </Card>
-      </div>
+        </Card >
+      </div >
 
       {/* Media Library Modal (Keep as is) */}
-      <Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen}>
+      < Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen} >
         <DialogContent className="max-w-4xl bg-card max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-card-foreground">Media Library ({mediaType === "REEL" ? "Videos" : "Images"})</DialogTitle>
@@ -981,7 +1057,7 @@ export default function CreatePostPage() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-    </DashboardLayout>
+      </Dialog >
+    </DashboardLayout >
   )
 }
