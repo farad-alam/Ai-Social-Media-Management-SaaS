@@ -963,7 +963,7 @@ export default function CreatePostPage() {
                 disabled={isAnySubmitting || (!uploadedImage && carouselItems.length === 0)}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[100px]"
               >
-                {isScheduling ? "Scheduling..." : (date && scheduleTime && scheduleTime !== "") ? "Schedule" : "Share"}
+                {isScheduling ? "Scheduling..." : (date && scheduleTime && scheduleTime !== "") ? "Schedule" : "Publish Now"}
               </Button>
             </div>
 

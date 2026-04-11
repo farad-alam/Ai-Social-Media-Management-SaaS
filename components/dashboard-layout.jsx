@@ -22,7 +22,6 @@ const navigation = [
   { name: "Create Post", href: "/create", icon: PlusCircle },
   { name: "Preview", href: "/preview", icon: Smartphone },
   { name: "All Posts", href: "/all-posts", icon: Grid3X3 },
-  { name: "Templates", href: "/templates", icon: ImageIcon },
   { name: "Connect Instagram", href: "/connect-instagram", icon: Instagram },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
