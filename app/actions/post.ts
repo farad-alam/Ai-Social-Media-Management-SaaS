@@ -50,6 +50,10 @@ export async function createPost(formData: FormData) {
             imageUrls.push(coverUrl)
         }
 
+
+
+        console.log("Post payload:", { userId, caption, imageUrls, scheduledAt, status, mediaType, statusType: typeof status })
+
         // 2. Create Post
         await prisma.post.create({
             data: {
