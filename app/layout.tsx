@@ -7,11 +7,11 @@ import './globals.css'
 export const metadata = {
   metadataBase: new URL("https://social-flowai.vercel.app"),
   title: {
-    default: "SocialFlow - AI Social Media Content Management",
-    template: "%s | SocialFlow",
+    default: "OmaticSocial - AI Social Media Content Management",
+    template: "%s | OmaticSocial",
   },
   description:
-    "SocialFlow is an AI-powered platform that helps you create, schedule, and manage social media content effortlessly. Generate posts, analyze engagement, and grow your brand with AI automation.",
+    "OmaticSocial is an AI-powered platform that helps you create, schedule, and manage social media content effortlessly. Generate posts, analyze engagement, and grow your brand with AI automation.",
   keywords: [
     "AI social media manager",
     "AI content creator",
@@ -22,19 +22,19 @@ export const metadata = {
     "Instagram scheduler",
     "Facebook post generator",
     "LinkedIn AI content",
-    "SocialFlow",
+    "OmaticSocial",
   ],
   authors: [
-    { name: "SocialFlow Team", url: "https://social-flowai.vercel.app" },
+    { name: "OmaticSocial Team", url: "https://social-flowai.vercel.app" },
   ],
-  creator: "SocialFlow AI",
-  publisher: "SocialFlow",
+  creator: "OmaticSocial AI",
+  publisher: "OmaticSocial",
   openGraph: {
-    title: "SocialFlow - AI Social Media Content Management",
+    title: "OmaticSocial - AI Social Media Content Management",
     description:
-      "Create, schedule, and manage all your social media content with AI. SocialFlow helps automate your social growth with smart scheduling and post generation.",
+      "Create, schedule, and manage all your social media content with AI. OmaticSocial helps automate your social growth with smart scheduling and post generation.",
     url: "https://social-flowai.vercel.app",
-    siteName: "SocialFlow",
+    siteName: "OmaticSocial",
     locale: "en_US",
     type: "website",
     images: [
@@ -42,17 +42,17 @@ export const metadata = {
         url: "https://social-flowai.vercel.app/og-image.png",
         width: 1200,
         height: 630,
-        alt: "SocialFlow - AI Social Media Platform",
+        alt: "OmaticSocial - AI Social Media Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SocialFlow - AI Social Media Content Management",
+    title: "OmaticSocial - AI Social Media Content Management",
     description:
-      "AI-powered social media content creation and scheduling platform. Save time and grow faster with SocialFlow.",
-    site: "@socialflowai",
-    creator: "@socialflowai",
+      "AI-powered social media content creation and scheduling platform. Save time and grow faster with OmaticSocial.",
+    site: "@omaticsocial",
+    creator: "@omaticsocial",
     images: ["https://social-flowai.vercel.app/og-image.png"],
   },
   icons: {
@@ -96,7 +96,7 @@ export default function RootLayout({
               __html: JSON.stringify({
                 "@context": "https://schema.org",
                 "@type": "SoftwareApplication",
-                name: "SocialFlow",
+                name: "OmaticSocial",
                 url: "https://social-flowai.vercel.app",
                 applicationCategory: "Social Media Management",
                 operatingSystem: "Web",
@@ -105,7 +105,7 @@ export default function RootLayout({
                 image: "https://social-flowai.vercel.app/og-image.png",
                 author: {
                   "@type": "Organization",
-                  name: "SocialFlow AI",
+                  name: "OmaticSocial AI",
                 },
                 aggregateRating: {
                   "@type": "AggregateRating",
@@ -118,6 +118,11 @@ export default function RootLayout({
 
           {/* <link rel="canonical" href="https://bismillah-auto.netlify.app" /> */}
           <link rel="icon" type="image/svg+xml" href="/favicon.png" />
+          <link href="https://fonts.googleapis.com" rel="preconnect" />
+          <link crossOrigin="anonymous" href="https://fonts.gstatic.com" rel="preconnect" />
+          <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+          <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;900&display=swap" rel="stylesheet" />
+          <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         </head>
         <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
           {children}

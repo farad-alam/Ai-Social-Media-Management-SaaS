@@ -13,7 +13,7 @@ export default function SignUpPage() {
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <Sparkles className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold text-foreground">SocialFlow</span>
+          <span className="text-2xl font-bold text-foreground">OmaticSocial</span>
         </Link>
         <SignUp
           fallbackRedirectUrl="/dashboard"

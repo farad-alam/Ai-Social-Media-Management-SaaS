@@ -62,7 +62,7 @@ export function DashboardLayout({ children }) {
               <div className="w-8 h-8 bg-sidebar-primary rounded-lg flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-sidebar-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-sidebar-foreground">SocialFlow</span>
+              <span className="text-xl font-bold text-sidebar-foreground">OmaticSocial</span>
             </Link>
             <Button
               variant="ghost"
