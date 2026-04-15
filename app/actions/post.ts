@@ -3,6 +3,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { fromZonedTime } from 'date-fns-tz'
 
 export async function createPost(formData: FormData) {
     const user = await currentUser()
@@ -17,6 +18,7 @@ export async function createPost(formData: FormData) {
     const coverUrl = formData.get('coverUrl') as string
     const scheduleDate = formData.get('scheduleDate') as string
     const scheduleTime = formData.get('scheduleTime') as string
+    const timezone = formData.get('timezone') as string
     const mediaType = formData.get('mediaType') as string || 'IMAGE'
 
     if (!caption || !imageUrl) {
@@ -28,7 +30,11 @@ export async function createPost(formData: FormData) {
     let status = 'DRAFT'
 
     if (scheduleDate && scheduleTime) {
-        scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`)
+        if (timezone) {
+            scheduledAt = fromZonedTime(`${scheduleDate}T${scheduleTime}:00`, timezone)
+        } else {
+            scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`)
+        }
         status = 'SCHEDULED'
     }
 

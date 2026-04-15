@@ -54,6 +54,7 @@ export default function CreatePostPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [date, setDate] = useState(null)
   const [scheduleTime, setScheduleTime] = useState("")
+  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
 
   // Specific Loading States
   const [isScheduling, setIsScheduling] = useState(false)
@@ -519,6 +520,7 @@ export default function CreatePostPage() {
       const scheduleDateStr = format(date, "yyyy-MM-dd")
       formData.append('scheduleDate', scheduleDateStr)
       formData.append('scheduleTime', scheduleTime)
+      formData.append('timezone', timezone)
     }
 
     formData.append('mediaType', mediaType)
@@ -868,10 +870,32 @@ export default function CreatePostPage() {
                           <Input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="h-9 text-xs" />
                         </div>
                       </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Timezone</Label>
+                        <Select value={timezone} onValueChange={setTimezone}>
+                          <SelectTrigger className="h-9 text-xs w-full bg-background border-border">
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
+                            <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
+                            <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
+                            <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
+                            <SelectItem value="America/Halifax">Atlantic Time (Canada)</SelectItem>
+                            <SelectItem value="America/Toronto">Eastern Time (Toronto)</SelectItem>
+                            <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                            <SelectItem value="Europe/Paris">Central European Time</SelectItem>
+                            <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                            <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
+                            <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                            <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       {date && scheduleTime && (
                         <p className="text-xs text-muted-foreground bg-primary/10 p-2 rounded flex items-center gap-2">
                           <Clock className="w-3 h-3 text-primary" />
-                          Will post on {format(date, "MMM d")} at {scheduleTime}
+                          Will post on {format(date, "MMM d")} at {scheduleTime} ({timezone})
                         </p>
                       )}
                     </div>
