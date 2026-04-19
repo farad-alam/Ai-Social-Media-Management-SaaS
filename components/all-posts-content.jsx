@@ -11,12 +11,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Clock, Heart, MessageCircle, Trash2, Layers, ChevronLeft, ChevronRight } from "lucide-react"
 import { getDashboardData } from "@/app/actions/dashboard"
 import { deletePost } from "@/app/actions/post"
+import { getInstagramStatus } from "@/app/actions/instagram"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AllPostsContent() {
     const { toast } = useToast()
     const [loading, setLoading] = useState(true)
     const [posts, setPosts] = useState([])
+    const [instagramProfile, setInstagramProfile] = useState(null)
     const [refreshTrigger, setRefreshTrigger] = useState(0)
     const [previewPost, setPreviewPost] = useState(null)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -28,10 +30,12 @@ export default function AllPostsContent() {
     useEffect(() => {
         async function loadData() {
             try {
-                const data = await getDashboardData()
-                if (data.posts) {
-                    setPosts(data.posts)
-                }
+                const [data, igStatus] = await Promise.all([
+                    getDashboardData(),
+                    getInstagramStatus()
+                ])
+                if (data.posts) setPosts(data.posts)
+                if (igStatus?.isConnected) setInstagramProfile(igStatus)
             } catch (e) {
                 console.error(e)
             } finally {
@@ -233,9 +237,11 @@ export default function AllPostsContent() {
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 <div className="bg-background">
                                     <div className="flex items-center gap-3 p-3">
-                                        <div className="w-8 h-8 bg-primary rounded-full" />
+                                        <div className="w-8 h-8 relative rounded-full overflow-hidden bg-muted">
+                                            <Image src={instagramProfile?.picture || "/placeholder.svg"} fill className="object-cover" alt="Profile" />
+                                        </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-foreground">your_username</p>
+                                            <p className="text-sm font-semibold text-foreground">{instagramProfile?.username || "your_username"}</p>
                                             <p className="text-xs text-muted-foreground">Original Audio</p>
                                         </div>
                                     </div>
@@ -304,7 +310,7 @@ export default function AllPostsContent() {
 
                                         <div>
                                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                                <span className="font-semibold text-foreground mr-2">your_username</span>
+                                                <span className="font-semibold text-foreground mr-2">{instagramProfile?.username || "your_username"}</span>
                                                 {previewPost.caption}
                                             </p>
                                             <p className="text-xs text-muted-foreground mt-2 uppercase">

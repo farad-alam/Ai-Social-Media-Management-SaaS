@@ -73,7 +73,7 @@ export class InstagramClient {
     }
 
     static async getInstagramUserDetails(instagramId: string, accessToken: string) {
-        const url = `https://graph.facebook.com/v19.0/${instagramId}?fields=username,profile_picture_url&access_token=${accessToken}`;
+        const url = `https://graph.facebook.com/v19.0/${instagramId}?fields=username,profile_picture_url,name,biography&access_token=${accessToken}`;
         const res = await fetch(url);
         return await res.json();
     }

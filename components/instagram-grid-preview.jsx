@@ -66,25 +66,21 @@ export function InstagramGridPreview({ posts, profile, isConnected }) {
 
                         {/* Name & Username */}
                         <div className="flex flex-col justify-center">
-                            <span className="font-bold text-sm">{displayProfile.username}</span>
-                            <span className="text-sm text-muted-foreground">{displayProfile.name || "Digital Creator"}</span>
+                            <span className="font-bold text-lg">{displayProfile.username}</span>
                         </div>
+                    </div>
+
+                    {/* Bio Section */}
+                    <div className="flex flex-col mb-4">
+                        {displayProfile.name && <span className="font-bold text-sm">{displayProfile.name}</span>}
+                        {displayProfile.biography && <span className="text-sm text-foreground whitespace-pre-wrap">{displayProfile.biography}</span>}
                     </div>
 
 
 
                     {/* Action Buttons */}
                     <div className="flex gap-2 mb-2">
-                        {isConnected ? (
-                            <>
-                                <button className="flex-1 bg-muted text-foreground text-xs font-semibold py-1.5 rounded-lg hover:bg-muted/80 transition-colors">
-                                    Edit Profile
-                                </button>
-                                <button className="flex-1 bg-muted text-foreground text-xs font-semibold py-1.5 rounded-lg hover:bg-muted/80 transition-colors">
-                                    Share Profile
-                                </button>
-                            </>
-                        ) : (
+                        {isConnected ? null : (
                             <Link href="/connect-instagram" className="w-full">
                                 <button className="w-full bg-primary text-primary-foreground text-xs font-semibold py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
                                     Connect Profile

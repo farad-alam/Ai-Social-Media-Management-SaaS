@@ -16,17 +16,23 @@ export async function getInstagramStatus() {
     try {
         const account = await prisma.account.findFirst({
             where: { userId },
-            select: { id: true, username: true, picture: true, instagramId: true, accessToken: true }
+            select: { id: true, username: true, picture: true, instagramId: true, accessToken: true, updatedAt: true }
         })
 
         if (account) {
             let freshPicture = account.picture;
+            
+            // Only ping Instagram API if the picture in the database is more than 24 hours old
+            // This massively speeds up page loads on /create and /all-posts
+            const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+            const isStale = (Date.now() - new Date(account.updatedAt).getTime()) > TWENTY_FOUR_HOURS;
+
             try {
-                if (account.instagramId && account.accessToken) {
+                if (isStale && account.instagramId && account.accessToken) {
                     const details = await InstagramClient.getInstagramUserDetails(account.instagramId, account.accessToken);
                     if (details && details.profile_picture_url) {
                         freshPicture = details.profile_picture_url;
-                        // Renew the expired URL in db
+                        // Renew the expired URL in db (updates the updatedAt timestamp automatically)
                         await prisma.account.update({
                             where: { id: account.id },
                             data: { picture: freshPicture }
