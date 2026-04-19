@@ -9,9 +9,12 @@ import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Image from "next/image"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { updatePostSchedule, updateScheduledPost } from '@/app/actions/calendar'
+import { deletePost } from '@/app/actions/post'
+import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from 'next/navigation'
 
@@ -21,6 +24,9 @@ export function CalendarView({ posts = [], onRefresh }) {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const [selectedPost, setSelectedPost] = useState(null)
     const [isUpdating, setIsUpdating] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [newImageFile, setNewImageFile] = useState(null)
+    const [newImagePreview, setNewImagePreview] = useState(null)
 
     // Transform posts to FullCalendar events
     const events = posts.map(post => ({
@@ -70,6 +76,36 @@ export function CalendarView({ posts = [], onRefresh }) {
         }
     }
 
+    const handleDeletePost = async () => {
+        if (!selectedPost) return
+        if (!confirm("Are you sure you want to delete this scheduled post?")) return
+
+        setIsDeleting(true)
+        const result = await deletePost(selectedPost.id)
+        setIsDeleting(false)
+
+        if (result.error) {
+            toast({ title: "Error", description: result.error, variant: "destructive" })
+        } else {
+            toast({ title: "Success", description: "Post deleted successfully." })
+            setIsEditModalOpen(false)
+            setSelectedPost(null)
+            if (onRefresh) onRefresh()
+        }
+    }
+
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            setNewImageFile(file)
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setNewImagePreview(reader.result)
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
     const handleEventClick = (info) => {
         const status = info.event.extendedProps.status
 
@@ -87,8 +123,11 @@ export function CalendarView({ posts = [], onRefresh }) {
         setSelectedPost({
             id: info.event.id,
             caption: info.event.extendedProps.caption,
-            scheduledAt: info.event.extendedProps.scheduledAt
+            scheduledAt: info.event.extendedProps.scheduledAt,
+            imageUrl: info.event.extendedProps.imageUrl
         })
+        setNewImageFile(null)
+        setNewImagePreview(null)
         setIsEditModalOpen(true)
     }
 
@@ -104,7 +143,28 @@ export function CalendarView({ posts = [], onRefresh }) {
         // Combine date and time
         const scheduledAt = `${scheduleDate}T${scheduleTime}:00`
 
-        const result = await updateScheduledPost(selectedPost.id, caption, scheduledAt)
+        let finalImageUrl = null
+
+        if (newImageFile) {
+            // Upload to Supabase first
+            const ext = newImageFile.name.split('.').pop()
+            const cleanFileName = `update-${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('posts')
+                .upload(cleanFileName, newImageFile)
+
+            if (uploadError) {
+                toast({ title: "Upload Failed", description: uploadError.message, variant: "destructive" })
+                setIsUpdating(false)
+                return
+            }
+
+            const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(cleanFileName)
+            finalImageUrl = publicUrl
+        }
+
+        const result = await updateScheduledPost(selectedPost.id, caption, scheduledAt, finalImageUrl)
 
         setIsUpdating(false)
 
@@ -298,6 +358,34 @@ export function CalendarView({ posts = [], onRefresh }) {
                     </DialogHeader>
                     <form onSubmit={handleUpdatePost}>
                         <div className="space-y-4 py-4">
+                            {/* Image Preview & Upload */}
+                            <div className="flex flex-col items-center justify-center space-y-4 mb-4">
+                                <div className="relative w-full aspect-video bg-muted rounded-md overflow-hidden border border-border flex items-center justify-center">
+                                    {(newImagePreview || selectedPost?.imageUrl) ? (
+                                        <Image 
+                                            src={newImagePreview || selectedPost?.imageUrl} 
+                                            alt="Post image" 
+                                            fill 
+                                            className="object-contain"
+                                        />
+                                    ) : (
+                                        <span className="text-muted-foreground text-sm">No image</span>
+                                    )}
+                                </div>
+                                <div className="w-full">
+                                    <Label htmlFor="imageUpload" className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full">
+                                        Change Image / Video
+                                    </Label>
+                                    <Input 
+                                        id="imageUpload" 
+                                        type="file" 
+                                        accept="image/*,video/*" 
+                                        className="hidden" 
+                                        onChange={handleImageChange}
+                                    />
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="caption">Caption</Label>
                                 <Textarea
@@ -333,18 +421,29 @@ export function CalendarView({ posts = [], onRefresh }) {
                                 </div>
                             </div>
                         </div>
-                        <DialogFooter>
+                        <DialogFooter className="flex justify-between items-center w-full">
                             <Button
                                 type="button"
-                                variant="outline"
-                                onClick={() => setIsEditModalOpen(false)}
-                                disabled={isUpdating}
+                                variant="destructive"
+                                onClick={handleDeletePost}
+                                disabled={isUpdating || isDeleting}
+                                className="mr-auto"
                             >
-                                Cancel
+                                {isDeleting ? "Deleting..." : "Delete"}
                             </Button>
-                            <Button type="submit" disabled={isUpdating}>
-                                {isUpdating ? "Updating..." : "Update Post"}
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsEditModalOpen(false)}
+                                    disabled={isUpdating || isDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={isUpdating || isDeleting}>
+                                    {isUpdating ? "Updating..." : "Update Post"}
+                                </Button>
+                            </div>
                         </DialogFooter>
                     </form>
                 </DialogContent>

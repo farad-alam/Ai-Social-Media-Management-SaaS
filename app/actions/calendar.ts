@@ -41,7 +41,8 @@ export async function updatePostSchedule(postId: string, newDate: string) {
 export async function updateScheduledPost(
     postId: string,
     caption: string,
-    scheduledAt: string
+    scheduledAt: string,
+    imageUrl?: string
 ) {
     const { userId } = await auth()
 
@@ -79,17 +80,23 @@ export async function updateScheduledPost(
             return { error: 'Cannot edit published posts' }
         }
 
+        const updateData: any = {
+            caption,
+            scheduledAt: newScheduledDate,
+            status: 'SCHEDULED'
+        }
+        
+        if (imageUrl) {
+            updateData.imageUrls = [imageUrl]
+        }
+
         // Update the post
         await prisma.post.update({
             where: {
                 id: postId,
                 userId
             },
-            data: {
-                caption,
-                scheduledAt: newScheduledDate,
-                status: 'SCHEDULED'
-            }
+            data: updateData
         })
 
         revalidatePath('/dashboard')
