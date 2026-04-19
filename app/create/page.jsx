@@ -42,6 +42,16 @@ const suggestedHashtags = [
   "#summer",
 ]
 
+const TIME_OPTIONS = Array.from({ length: 48 }).map((_, i) => {
+  const hour = Math.floor(i / 2)
+  const minute = i % 2 === 0 ? "00" : "30"
+  const value = `${hour.toString().padStart(2, "0")}:${minute}`
+  const period = hour >= 12 ? "PM" : "AM"
+  const visualHour = hour % 12 === 0 ? 12 : hour % 12
+  const label = `${visualHour}:${minute} ${period}`
+  return { value, label }
+})
+
 export default function CreatePostPage() {
   const { toast } = useToast()
   const router = useRouter()
@@ -53,8 +63,18 @@ export default function CreatePostPage() {
   const [fileToUpload, setFileToUpload] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   const [date, setDate] = useState(null)
-  const [scheduleTime, setScheduleTime] = useState("")
+  const [scheduleHour, setScheduleHour] = useState("12")
+  const [scheduleMinute, setScheduleMinute] = useState("00")
+  const [scheduleAmPm, setScheduleAmPm] = useState("PM")
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+
+  const formattedHour = () => {
+    let hourNum = parseInt(scheduleHour, 10);
+    if (scheduleAmPm === "PM" && hourNum !== 12) hourNum += 12;
+    if (scheduleAmPm === "AM" && hourNum === 12) hourNum = 0;
+    return hourNum.toString().padStart(2, '0');
+  }
+  const scheduleTime = `${formattedHour()}:${scheduleMinute}`;
 
   // Specific Loading States
   const [isScheduling, setIsScheduling] = useState(false)
@@ -538,7 +558,9 @@ export default function CreatePostPage() {
       setCoverImage(null)
       setCoverFile(null)
       setDate(null)
-      setScheduleTime("")
+      setScheduleHour("12")
+      setScheduleMinute("00")
+      setScheduleAmPm("PM")
       setSelectedHashtags([])
       setCarouselItems([])
     }
@@ -740,8 +762,8 @@ export default function CreatePostPage() {
             {/* Header / Top Bar */}
             <div className="h-16 border-b border-border flex items-center justify-between px-4 flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted overflow-hidden border border-border">
-                  <img src={instagramProfile?.picture || "/placeholder.svg"} className="w-full h-full object-cover" alt="Profile" />
+                <div className="w-8 h-8 relative rounded-full bg-muted overflow-hidden border border-border">
+                  <Image src={instagramProfile?.picture || "/placeholder.svg"} fill className="object-cover" alt="Profile" />
                 </div>
                 <span className="font-semibold text-sm">{instagramProfile?.username || "Not Connected"}</span>
                 {!instagramProfile && (
@@ -867,7 +889,39 @@ export default function CreatePostPage() {
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Time</Label>
-                          <Input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="h-9 text-xs" />
+                          <div className="flex items-center gap-1">
+                            <Select value={scheduleHour} onValueChange={setScheduleHour}>
+                              <SelectTrigger className="h-9 text-xs w-[60px] bg-background border-border px-2">
+                                <SelectValue placeholder="Hr" />
+                              </SelectTrigger>
+                              <SelectContent className="min-w-[60px] max-h-[200px]">
+                                {Array.from({ length: 12 }).map((_, i) => (
+                                  <SelectItem key={i + 1} value={(i + 1).toString()}>{i + 1}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span>:</span>
+                            <Select value={scheduleMinute} onValueChange={setScheduleMinute}>
+                              <SelectTrigger className="h-9 text-xs w-[60px] bg-background border-border px-2">
+                                <SelectValue placeholder="Min" />
+                              </SelectTrigger>
+                              <SelectContent className="min-w-[60px] max-h-[200px]">
+                                {Array.from({ length: 60 }).map((_, i) => {
+                                  const min = i.toString().padStart(2, '0')
+                                  return <SelectItem key={min} value={min}>{min}</SelectItem>
+                                })}
+                              </SelectContent>
+                            </Select>
+                            <Select value={scheduleAmPm} onValueChange={setScheduleAmPm}>
+                              <SelectTrigger className="h-9 text-xs w-[65px] bg-background border-border px-2">
+                                <SelectValue placeholder="AM/PM" />
+                              </SelectTrigger>
+                              <SelectContent className="min-w-[65px]">
+                                <SelectItem value="AM">AM</SelectItem>
+                                <SelectItem value="PM">PM</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-1">
