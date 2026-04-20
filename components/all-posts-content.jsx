@@ -248,10 +248,15 @@ export default function AllPostsContent() {
                                     <div className={`relative w-full bg-black group/preview ${previewPost.mediaType === 'REEL' ? 'aspect-[9/16]' : 'aspect-square'}`}>
                                         {previewPost.mediaType === 'REEL' ? (
                                             <video
-                                                src={previewPost.imageUrls?.[0]}
                                                 controls
+                                                playsInline
+                                                preload="metadata"
                                                 className="w-full h-full object-contain"
-                                            />
+                                                key={previewPost.imageUrls?.[0]}
+                                            >
+                                                <source src={previewPost.imageUrls?.[0]} />
+                                                Your browser does not support the video tag.
+                                            </video>
                                         ) : (
                                             <>
                                                 <Image

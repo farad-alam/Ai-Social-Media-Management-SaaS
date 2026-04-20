@@ -706,16 +706,24 @@ export default function CreatePostPage() {
                 ) : (
                   mediaType === 'REEL' || (mediaType === 'STORY' && uploadedImage?.toString().startsWith('blob:') && fileToUpload?.type?.startsWith('video/')) ? (
                     <video
-                      src={uploadedImage}
+                      key={uploadedImage}
                       className="w-full h-full object-contain"
                       controls
-                    />
+                      playsInline
+                      preload="metadata"
+                    >
+                      <source src={uploadedImage} />
+                    </video>
                   ) : (typeof uploadedImage === 'string' && uploadedImage.startsWith('http') && mediaType === 'REEL') ? (
                     <video
-                      src={uploadedImage}
+                      key={uploadedImage}
                       className="w-full h-full object-contain"
                       controls
-                    />
+                      playsInline
+                      preload="metadata"
+                    >
+                      <source src={uploadedImage} />
+                    </video>
                   ) : (
                     <div className="relative w-full h-full">
                       <Image
@@ -1110,8 +1118,15 @@ export default function CreatePostPage() {
                       : 'border-transparent hover:border-primary'
                       }`}
                   >
-                    {mediaType === 'REEL' ? (
-                      <video src={url} className="w-full h-full object-cover" />
+                    {(mediaType === 'REEL' || mediaType === 'STORY') && url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                      <video 
+                        className="w-full h-full object-cover" 
+                        controls={false}
+                        playsInline
+                        preload="metadata"
+                      >
+                        <source src={url} />
+                      </video>
                     ) : (
                       <Image
                         src={url}
