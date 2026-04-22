@@ -72,3 +72,25 @@ export async function disconnectInstagram() {
         return { error: "Failed to disconnect" }
     }
 }
+
+export async function searchInstagramLocations(query: string) {
+    const { userId } = await auth()
+    if (!userId) return { error: "Unauthorized" }
+
+    try {
+        const account = await prisma.account.findFirst({
+            where: { userId }
+        })
+        if (!account || !account.accessToken) {
+            return { error: "Instagram account not connected" }
+        }
+
+        const data = await InstagramClient.searchLocations(query, account.accessToken)
+        if (data.error) throw new Error(data.error.message)
+        
+        return { data: data.data || [] }
+    } catch (error: any) {
+        console.error("Failed to search locations:", error)
+        return { error: error.message }
+    }
+}

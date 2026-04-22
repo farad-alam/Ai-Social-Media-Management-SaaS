@@ -88,7 +88,8 @@ export async function GET() {
                         account.instagramId,
                         imageUrl,
                         post.caption,
-                        account.accessToken
+                        account.accessToken,
+                        post.locationId
                     );
 
                     // Update Status
@@ -107,7 +108,9 @@ export async function GET() {
                         account.instagramId,
                         imageUrl,
                         post.caption,
-                        account.accessToken
+                        account.accessToken,
+                        post.locationId,
+                        post.userTags as any[]
                     );
 
                     // Update Status
@@ -157,7 +160,9 @@ export async function GET() {
                         account.instagramId,
                         post.imageUrls,
                         post.caption,
-                        account.accessToken
+                        account.accessToken,
+                        post.locationId,
+                        post.userTags as any[]
                     );
 
                     // Update Status

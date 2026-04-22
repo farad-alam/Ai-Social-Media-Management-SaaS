@@ -26,8 +26,11 @@ model Post {
   user        User     @relation(fields: [userId], references: [id])
   userId      String
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt       DateTime @updatedAt
   instagramPostId String?
+  locationId      String?
+  locationName    String?
+  userTags        Json?
 }
 
 model Account {

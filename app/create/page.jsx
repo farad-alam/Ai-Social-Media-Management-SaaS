@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
-import { getInstagramStatus } from "@/app/actions/instagram"
+import { getInstagramStatus, searchInstagramLocations } from "@/app/actions/instagram"
 import { generateCaption } from "@/app/actions/ai"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -57,6 +57,12 @@ export default function CreatePostPage() {
   const router = useRouter()
   const [caption, setCaption] = useState("")
   const [topic, setTopic] = useState("")
+  const [locationQuery, setLocationQuery] = useState("")
+  const [locationResults, setLocationResults] = useState([])
+  const [selectedLocation, setSelectedLocation] = useState(null) // { id, name }
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false)
+  const [userTags, setUserTags] = useState([]) // [{ username, x: 0.5, y: 0.5 }]
+  const [tagInput, setTagInput] = useState("")
   const [tone, setTone] = useState("professional")
   const [selectedHashtags, setSelectedHashtags] = useState([])
   const [uploadedImage, setUploadedImage] = useState(null)
@@ -139,6 +145,20 @@ export default function CreatePostPage() {
       setLoadingProfile(false)
     }
   }
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (locationQuery.length > 2) {
+        setIsSearchingLocation(true)
+        const res = await searchInstagramLocations(locationQuery)
+        if (res.data) setLocationResults(res.data)
+        setIsSearchingLocation(false)
+      } else {
+        setLocationResults([])
+      }
+    }, 500)
+    return () => clearTimeout(delayDebounceFn)
+  }, [locationQuery])
 
   useEffect(() => {
     if (isMediaLibraryOpen) {
@@ -545,6 +565,15 @@ export default function CreatePostPage() {
 
     formData.append('mediaType', mediaType)
 
+    if (selectedLocation) {
+      formData.append('locationId', selectedLocation.id)
+      formData.append('locationName', selectedLocation.name)
+    }
+    
+    if (userTags.length > 0 && (mediaType === 'IMAGE' || mediaType === 'CAROUSEL')) {
+      formData.append('userTags', JSON.stringify(userTags))
+    }
+
     const result = await createPost(formData)
 
     if (result.error) {
@@ -563,6 +592,10 @@ export default function CreatePostPage() {
       setScheduleAmPm("PM")
       setSelectedHashtags([])
       setCarouselItems([])
+      setSelectedLocation(null)
+      setLocationQuery("")
+      setUserTags([])
+      setTagInput("")
     }
   }
 
@@ -854,6 +887,77 @@ export default function CreatePostPage() {
                   </div>
                 </div>
 
+              </div>
+
+              {/* Tagging and Location */}
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1 relative">
+                  <Label className="text-xs flex items-center gap-1.5"><MapPin className="w-3 h-3"/> Add Location</Label>
+                  <div className="relative">
+                    <Input 
+                      placeholder="Search location..." 
+                      className="h-9 text-sm" 
+                      value={locationQuery}
+                      onChange={(e) => {
+                        setLocationQuery(e.target.value)
+                        if (!e.target.value) setSelectedLocation(null)
+                      }}
+                    />
+                    {isSearchingLocation && <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"/>}
+                    
+                    {locationQuery.length > 2 && !selectedLocation && locationResults.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {locationResults.map(loc => (
+                          <div 
+                            key={loc.id} 
+                            className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
+                            onClick={() => {
+                              setSelectedLocation({ id: loc.id, name: loc.name })
+                              setLocationQuery(loc.name)
+                            }}
+                          >
+                            <div className="font-medium">{loc.name}</div>
+                            {loc.location && <div className="text-xs text-muted-foreground">{loc.location.city}{loc.location.country ? `, ${loc.location.country}` : ''}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(mediaType === 'IMAGE' || mediaType === 'CAROUSEL') && (
+                  <div className="space-y-1">
+                    <Label className="text-xs flex items-center gap-1.5"><Smile className="w-3 h-3"/> Tag People</Label>
+                    <div className="flex flex-col gap-2">
+                        <Input 
+                          placeholder="Type username and press Enter" 
+                          className="h-9 text-sm"
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && tagInput.trim()) {
+                              e.preventDefault()
+                              let cleanTag = tagInput.trim().replace(/^@/, '')
+                              if (!userTags.find(t => t.username === cleanTag)) {
+                                setUserTags([...userTags, { username: cleanTag, x: 0.5, y: 0.5 }])
+                              }
+                              setTagInput("")
+                            }
+                          }}
+                        />
+                        {userTags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {userTags.map((tag, idx) => (
+                              <Badge key={idx} variant="secondary" className="flex items-center gap-1 bg-primary/10 text-primary hover:bg-primary/20">
+                                @{tag.username}
+                                <X className="w-3 h-3 cursor-pointer ml-1 text-primary/70 hover:text-destructive transition-colors" onClick={() => setUserTags(userTags.filter(t => t.username !== tag.username))} />
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="h-px bg-border my-2" />

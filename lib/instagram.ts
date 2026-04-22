@@ -78,9 +78,18 @@ export class InstagramClient {
         return await res.json();
     }
 
-    static async publishImage(instagramId: string, imageUrl: string, caption: string, accessToken: string) {
+    static async searchLocations(query: string, accessToken: string) {
+        const url = `https://graph.facebook.com/v19.0/pages/search?q=${encodeURIComponent(query)}&fields=id,name,location&access_token=${accessToken}`;
+        const res = await fetch(url);
+        return await res.json();
+    }
+
+    static async publishImage(instagramId: string, imageUrl: string, caption: string, accessToken: string, locationId?: string, userTags?: any[]) {
         // 1. Create Container
-        const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(caption)}&access_token=${accessToken}`;
+        let createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?image_url=${encodeURIComponent(imageUrl)}&caption=${encodeURIComponent(caption)}`;
+        if (locationId) createUrl += `&location_id=${locationId}`;
+        if (userTags && userTags.length > 0) createUrl += `&user_tags=${encodeURIComponent(JSON.stringify(userTags))}`;
+        createUrl += `&access_token=${accessToken}`;
         const createRes = await fetch(createUrl, { method: 'POST' });
         const createData = await createRes.json();
 
@@ -98,10 +107,12 @@ export class InstagramClient {
         return publishData.id;
     }
 
-    static async publishReel(instagramId: string, videoUrl: string, caption: string, accessToken: string) {
+    static async publishReel(instagramId: string, videoUrl: string, caption: string, accessToken: string, locationId?: string) {
         // 1. Create Container for REELS
         // Note: media_type=REELS is required for reels
-        const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=REELS&video_url=${encodeURIComponent(videoUrl)}&caption=${encodeURIComponent(caption)}&access_token=${accessToken}`;
+        let createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=REELS&video_url=${encodeURIComponent(videoUrl)}&caption=${encodeURIComponent(caption)}`;
+        if (locationId) createUrl += `&location_id=${locationId}`;
+        createUrl += `&access_token=${accessToken}`;
         const createRes = await fetch(createUrl, { method: 'POST' });
         const createData = await createRes.json();
 
@@ -209,11 +220,13 @@ export class InstagramClient {
         return publishData.id;
     }
 
-    static async publishCarousel(instagramId: string, imageUrls: string[], caption: string, accessToken: string) {
+    static async publishCarousel(instagramId: string, imageUrls: string[], caption: string, accessToken: string, locationId?: string, userTags?: any[]) {
         // 1. Create Items Containers
         const itemIds = [];
         for (const url of imageUrls) {
-            const createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?is_carousel_item=true&image_url=${encodeURIComponent(url)}&access_token=${accessToken}`;
+            let createUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?is_carousel_item=true&image_url=${encodeURIComponent(url)}`;
+            if (userTags && userTags.length > 0) createUrl += `&user_tags=${encodeURIComponent(JSON.stringify(userTags))}`;
+            createUrl += `&access_token=${accessToken}`;
             const createRes = await fetch(createUrl, { method: 'POST' });
             const createData = await createRes.json();
 
@@ -222,7 +235,9 @@ export class InstagramClient {
         }
 
         // 2. Create Carousel Container
-        const createCarouselUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=CAROUSEL&caption=${encodeURIComponent(caption)}&children=${itemIds.join(',')}&access_token=${accessToken}`;
+        let createCarouselUrl = `https://graph.facebook.com/v19.0/${instagramId}/media?media_type=CAROUSEL&caption=${encodeURIComponent(caption)}&children=${itemIds.join(',')}`;
+        if (locationId) createCarouselUrl += `&location_id=${locationId}`;
+        createCarouselUrl += `&access_token=${accessToken}`;
         const carouselRes = await fetch(createCarouselUrl, { method: 'POST' });
         const carouselData = await carouselRes.json();
 

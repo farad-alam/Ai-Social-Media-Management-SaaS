@@ -20,6 +20,14 @@ export async function createPost(formData: FormData) {
     const scheduleTime = formData.get('scheduleTime') as string
     const timezone = formData.get('timezone') as string
     const mediaType = formData.get('mediaType') as string || 'IMAGE'
+    const locationId = formData.get('locationId') as string
+    const locationName = formData.get('locationName') as string
+    const userTagsStr = formData.get('userTags') as string
+    
+    let userTags: any = null
+    if (userTagsStr) {
+        try { userTags = JSON.parse(userTagsStr) } catch(e) { console.error("Failed to parse userTags"); }
+    }
 
     if (!caption || !imageUrl) {
         return { error: 'Missing required fields' }
@@ -68,7 +76,10 @@ export async function createPost(formData: FormData) {
                 imageUrls,
                 scheduledAt,
                 status,
-                mediaType
+                mediaType,
+                locationId,
+                locationName,
+                userTags
             }
         })
 
