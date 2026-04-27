@@ -4,7 +4,18 @@ import { InstagramClient } from '@/lib/instagram';
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
-export async function GET() {
+export async function GET(request: Request) {
+    // ── Security: verify CRON_SECRET ─────────────────────────────────────────
+    const { searchParams } = new URL(request.url);
+    const secretFromQuery  = searchParams.get('secret');
+    const secretFromHeader = request.headers.get('x-cron-secret');
+    const secret = secretFromQuery ?? secretFromHeader;
+
+    if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     try {
         const now = new Date();
         const { userId } = await auth();

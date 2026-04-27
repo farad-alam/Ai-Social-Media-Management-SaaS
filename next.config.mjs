@@ -6,6 +6,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    instrumentationHook: true,  // Enables instrumentation.ts for dev cron
+  },
   images: {
     remotePatterns: [
       {
