@@ -17,7 +17,12 @@ import { deletePost } from '@/app/actions/post'
 import { supabase } from '@/lib/supabase'
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from 'next/navigation'
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarPicker } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import { Calendar as CalendarIcon, Clock } from "lucide-react"
 export function CalendarView({ posts = [], onRefresh }) {
     const { toast } = useToast()
     const router = useRouter()
@@ -27,6 +32,14 @@ export function CalendarView({ posts = [], onRefresh }) {
     const [isDeleting, setIsDeleting] = useState(false)
     const [newImageFile, setNewImageFile] = useState(null)
     const [newImagePreview, setNewImagePreview] = useState(null)
+
+    // New scheduling states matching create page
+    const [date, setDate] = useState(null)
+    const [scheduleHour, setScheduleHour] = useState("12")
+    const [scheduleMinute, setScheduleMinute] = useState("00")
+    const [scheduleAmPm, setScheduleAmPm] = useState("PM")
+    const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
 
     // Transform posts to FullCalendar events
     const events = posts.map(post => ({
@@ -120,6 +133,18 @@ export function CalendarView({ posts = [], onRefresh }) {
         }
 
         // Open edit modal for scheduled posts
+        const postDate = info.event.extendedProps.scheduledAt ? new Date(info.event.extendedProps.scheduledAt) : new Date()
+        
+        setDate(postDate)
+        
+        let hr = postDate.getHours()
+        const ampm = hr >= 12 ? "PM" : "AM"
+        hr = hr % 12 || 12
+        
+        setScheduleHour(hr.toString())
+        setScheduleMinute(postDate.getMinutes().toString().padStart(2, "0"))
+        setScheduleAmPm(ampm)
+
         setSelectedPost({
             id: info.event.id,
             caption: info.event.extendedProps.caption,
@@ -137,11 +162,21 @@ export function CalendarView({ posts = [], onRefresh }) {
 
         const formData = new FormData(e.target)
         const caption = formData.get('caption')
-        const scheduleDate = formData.get('scheduleDate')
-        const scheduleTime = formData.get('scheduleTime')
 
-        // Combine date and time
-        const scheduledAt = `${scheduleDate}T${scheduleTime}:00`
+        if (!date) {
+            toast({ title: "Error", description: "Please select a date", variant: "destructive" })
+            setIsUpdating(false)
+            return
+        }
+
+        let hourNum = parseInt(scheduleHour, 10);
+        if (scheduleAmPm === "PM" && hourNum !== 12) hourNum += 12;
+        if (scheduleAmPm === "AM" && hourNum === 12) hourNum = 0;
+        const formattedHour = hourNum.toString().padStart(2, '0');
+        
+        const scheduleTimeStr = `${formattedHour}:${scheduleMinute}`
+        const scheduleDateStr = format(date, "yyyy-MM-dd")
+        const scheduledAt = `${scheduleDateStr}T${scheduleTimeStr}:00`
 
         let finalImageUrl = null
 
@@ -164,7 +199,7 @@ export function CalendarView({ posts = [], onRefresh }) {
             finalImageUrl = publicUrl
         }
 
-        const result = await updateScheduledPost(selectedPost.id, caption, scheduledAt, finalImageUrl)
+        const result = await updateScheduledPost(selectedPost.id, caption, scheduledAt, finalImageUrl, timezone)
 
         setIsUpdating(false)
 
@@ -399,26 +434,86 @@ export function CalendarView({ posts = [], onRefresh }) {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="scheduleDate">Date</Label>
-                                    <Input
-                                        id="scheduleDate"
-                                        name="scheduleDate"
-                                        type="date"
-                                        defaultValue={formatDateForInput(selectedPost?.scheduledAt)}
-                                        min={getMinDateTime()}
-                                        required
-                                    />
+                                    <Label className="text-xs">Date</Label>
+                                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-xs h-9", !date && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-3 w-3" />
+                                                {date ? format(date, "PPP") : "Pick date"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <CalendarPicker
+                                                mode="single"
+                                                selected={date}
+                                                onSelect={(d) => {
+                                                    setDate(d)
+                                                    if (d) setIsDatePickerOpen(false)
+                                                }}
+                                                disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="scheduleTime">Time</Label>
-                                    <Input
-                                        id="scheduleTime"
-                                        name="scheduleTime"
-                                        type="time"
-                                        defaultValue={formatTimeForInput(selectedPost?.scheduledAt)}
-                                        required
-                                    />
+                                    <Label className="text-xs">Time</Label>
+                                    <div className="flex items-center gap-1">
+                                        <Select value={scheduleHour} onValueChange={setScheduleHour}>
+                                            <SelectTrigger className="h-9 text-xs w-[60px] bg-background border-border px-2">
+                                                <SelectValue placeholder="Hr" />
+                                            </SelectTrigger>
+                                            <SelectContent className="min-w-[60px] max-h-[200px]">
+                                                {Array.from({ length: 12 }).map((_, i) => (
+                                                    <SelectItem key={i + 1} value={(i + 1).toString()}>{i + 1}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <span>:</span>
+                                        <Select value={scheduleMinute} onValueChange={setScheduleMinute}>
+                                            <SelectTrigger className="h-9 text-xs w-[60px] bg-background border-border px-2">
+                                                <SelectValue placeholder="Min" />
+                                            </SelectTrigger>
+                                            <SelectContent className="min-w-[60px] max-h-[200px]">
+                                                {Array.from({ length: 60 }).map((_, i) => {
+                                                    const min = i.toString().padStart(2, '0')
+                                                    return <SelectItem key={min} value={min}>{min}</SelectItem>
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                        <Select value={scheduleAmPm} onValueChange={setScheduleAmPm}>
+                                            <SelectTrigger className="h-9 text-xs w-[65px] bg-background border-border px-2">
+                                                <SelectValue placeholder="AM/PM" />
+                                            </SelectTrigger>
+                                            <SelectContent className="min-w-[65px]">
+                                                <SelectItem value="AM">AM</SelectItem>
+                                                <SelectItem value="PM">PM</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
+                            </div>
+                            <div className="space-y-2 mt-2">
+                                <Label className="text-xs">Timezone</Label>
+                                <Select value={timezone} onValueChange={setTimezone}>
+                                    <SelectTrigger className="h-9 text-xs w-full bg-background border-border">
+                                        <SelectValue placeholder="Select timezone" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
+                                        <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
+                                        <SelectItem value="America/Denver">Mountain Time (US & Canada)</SelectItem>
+                                        <SelectItem value="America/Los_Angeles">Pacific Time (US & Canada)</SelectItem>
+                                        <SelectItem value="America/Halifax">Atlantic Time (Canada)</SelectItem>
+                                        <SelectItem value="America/Toronto">Eastern Time (Toronto)</SelectItem>
+                                        <SelectItem value="Europe/London">London (GMT)</SelectItem>
+                                        <SelectItem value="Europe/Paris">Central European Time</SelectItem>
+                                        <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                                        <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
+                                        <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                                        <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <DialogFooter className="flex justify-between items-center w-full">

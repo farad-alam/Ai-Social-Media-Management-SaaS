@@ -2,7 +2,6 @@
 import { prisma } from '@/lib/prisma';
 import { InstagramClient } from '@/lib/instagram';
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 
 export async function GET(request: Request) {
     // ── Security: verify CRON_SECRET ─────────────────────────────────────────
@@ -18,20 +17,15 @@ export async function GET(request: Request) {
 
     try {
         const now = new Date();
-        const { userId } = await auth();
 
         // 1. Find scheduled posts that are due
-        // Filter by user if authenticated (manual trigger safe mode)
+        // Since this is a global cron job, we check all users' scheduled posts.
         const whereClause: any = {
             status: 'SCHEDULED',
             scheduledAt: {
                 lte: now
             }
         };
-
-        if (userId) {
-            whereClause.userId = userId;
-        }
 
         const postsToPublish = await prisma.post.findMany({
             where: whereClause,

@@ -3,6 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { fromZonedTime } from 'date-fns-tz'
 
 export async function updatePostSchedule(postId: string, newDate: string) {
     const { userId } = await auth()
@@ -42,7 +43,8 @@ export async function updateScheduledPost(
     postId: string,
     caption: string,
     scheduledAt: string,
-    imageUrl?: string
+    imageUrl?: string,
+    timezone?: string
 ) {
     const { userId } = await auth()
 
@@ -51,7 +53,12 @@ export async function updateScheduledPost(
     }
 
     try {
-        const newScheduledDate = new Date(scheduledAt)
+        let newScheduledDate: Date;
+        if (timezone) {
+            newScheduledDate = fromZonedTime(scheduledAt, timezone);
+        } else {
+            newScheduledDate = new Date(scheduledAt);
+        }
 
         // Validate date is valid
         if (isNaN(newScheduledDate.getTime())) {
