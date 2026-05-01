@@ -97,7 +97,27 @@ export class InstagramClient {
 
         const creationId = createData.id;
 
-        // 2. Publish Container
+        // 2. Wait for Container Status (Processing takes time for remote URLs)
+        let status = 'IN_PROGRESS';
+        let retries = 0;
+
+        while (status !== 'FINISHED' && retries < 10) {
+            await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+            const statusRes = await fetch(statusUrl);
+            const statusData = await statusRes.json();
+
+            if (statusData.status_code) {
+                status = statusData.status_code;
+            }
+            retries++;
+        }
+
+        if (status !== 'FINISHED') {
+            console.log(`Image container status check timed out or not finished: ${status}`);
+        }
+
+        // 3. Publish Container
         const publishUrl = `https://graph.facebook.com/v19.0/${instagramId}/media_publish?creation_id=${creationId}&access_token=${accessToken}`;
         const publishRes = await fetch(publishUrl, { method: 'POST' });
         const publishData = await publishRes.json();

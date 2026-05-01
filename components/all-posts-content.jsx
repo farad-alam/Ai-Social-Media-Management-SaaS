@@ -67,7 +67,9 @@ export default function AllPostsContent() {
         const statusConfig = {
             SCHEDULED: { label: "Scheduled", className: "bg-blue-500 text-white" },
             DRAFT: { label: "Draft", className: "bg-gray-500 text-white" },
-            PUBLISHED: { label: "Published", className: "bg-green-500 text-white" }
+            PUBLISHED: { label: "Published", className: "bg-green-500 text-white" },
+            FAILED: { label: "Failed", className: "bg-red-500 text-white" },
+            PROCESSING: { label: "Processing", className: "bg-yellow-500 text-white" }
         }
         return statusConfig[status] || statusConfig.DRAFT
     }
