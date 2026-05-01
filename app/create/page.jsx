@@ -330,10 +330,10 @@ export default function CreatePostPage() {
         video.preload = 'metadata'
         video.onloadedmetadata = async function () {
           window.URL.revokeObjectURL(video.src)
-          if (video.duration > 180) { // 3 minutes limit
+          if (video.duration > 90) { // 90 seconds limit for Reels
             toast({
               title: "Video too long",
-              description: "Reels generally must be 90 seconds or less (we allow up to 3 mins). Please trim your video.",
+              description: "Reels must be 90 seconds or less. Please trim your video.",
               variant: "destructive"
             })
             setFileToUpload(null)
@@ -698,7 +698,6 @@ export default function CreatePostPage() {
                       <span className="font-semibold text-foreground">Reel Requirements:</span>
                       <span>• Format: MP4 or MOV</span>
                       <span>• Ratio: 9:16 (Vertical)</span>
-                      <span>• Codec: H.264 Video / AAC Audio</span>
                       <span>• Length: 3s to 90s</span>
                     </>
                   )}
