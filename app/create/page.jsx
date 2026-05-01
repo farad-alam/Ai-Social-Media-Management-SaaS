@@ -692,11 +692,26 @@ export default function CreatePostPage() {
                 >
                   Select from computer
                 </Button>
-                <p className="text-xs text-muted-foreground mt-8 opacity-50">
-                  {mediaType === 'REEL' && "Reels: 9:16, Max 3 min"}
-                  {mediaType === 'STORY' && "Stories: 9:16, Max 60s"}
+                <p className="text-xs text-muted-foreground mt-8 opacity-70 flex flex-col gap-1">
+                  {mediaType === 'REEL' && (
+                    <>
+                      <span className="font-semibold text-foreground">Reel Requirements:</span>
+                      <span>• Format: MP4 or MOV</span>
+                      <span>• Ratio: 9:16 (Vertical)</span>
+                      <span>• Codec: H.264 Video / AAC Audio</span>
+                      <span>• Length: 3s to 90s</span>
+                    </>
+                  )}
+                  {mediaType === 'STORY' && (
+                    <>
+                      <span className="font-semibold text-foreground">Story Requirements:</span>
+                      <span>• Format: JPEG, PNG, MP4, MOV</span>
+                      <span>• Ratio: 9:16 (Vertical)</span>
+                      <span>• Length: Max 60s (Video)</span>
+                    </>
+                  )}
                   {mediaType === 'CAROUSEL' && "Carousel: up to 20 images"}
-                  {mediaType === 'IMAGE' && "Posts: 1:1 or 4:5"}
+                  {mediaType === 'IMAGE' && "Posts: 1:1 (Square) or 4:5 (Portrait)"}
                 </p>
               </div>
             ) : (

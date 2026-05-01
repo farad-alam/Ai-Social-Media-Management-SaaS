@@ -10,7 +10,7 @@ async function main() {
 
   console.log("Latest 5 failed posts:");
   posts.forEach(p => {
-    console.log(`- ID: ${p.id} | Type: ${p.mediaType} | Reason: ${p.failedReason} | Caption: ${p.caption.substring(0, 20)}...`);
+    console.log(`- ID: ${p.id} | Type: ${p.mediaType} | Reason: ${p.failedReason} | URLs: ${JSON.stringify(p.imageUrls)}`);
   });
 }
 
