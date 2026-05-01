@@ -111,6 +111,30 @@ export default function CreatePostPage() {
   const hiddenVideoRef = useRef(null)
 
   useEffect(() => {
+    // Set default schedule time to current local time + 30 mins
+    const now = new Date()
+    now.setMinutes(now.getMinutes() + 30)
+    setDate(now)
+    
+    let hours = now.getHours()
+    let mins = now.getMinutes()
+    
+    // Snap to nearest 30 min interval for the dropdowns
+    if (mins <= 30) {
+      mins = 30
+    } else {
+      mins = 0
+      hours += 1
+    }
+    
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    hours = hours % 12
+    hours = hours ? hours : 12 // 0 becomes 12
+    
+    setScheduleHour(hours.toString())
+    setScheduleMinute(mins === 0 ? "00" : "30")
+    setScheduleAmPm(ampm)
+
     load()
   }, [])
 
