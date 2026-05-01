@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { auth } from "@clerk/nextjs/server"
 
+// landing paage
+
 export default async function LandingPage() {
   const { userId } = await auth()
 
