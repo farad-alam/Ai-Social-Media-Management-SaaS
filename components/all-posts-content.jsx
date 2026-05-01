@@ -315,6 +315,16 @@ export default function AllPostsContent() {
                                             </Badge>
                                         </div>
 
+                                        {previewPost.status === 'FAILED' && previewPost.failedReason && (
+                                            <div className="bg-red-500/10 border border-red-500/20 text-red-600 rounded-md p-3 mt-4">
+                                                <h4 className="font-semibold text-sm flex items-center gap-1.5 mb-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>
+                                                    Publishing Failed
+                                                </h4>
+                                                <p className="text-xs">{previewPost.failedReason}</p>
+                                            </div>
+                                        )}
+
                                         <div>
                                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                                                 <span className="font-semibold text-foreground mr-2">{instagramProfile?.username || "your_username"}</span>

@@ -101,14 +101,17 @@ export class InstagramClient {
         let status = 'IN_PROGRESS';
         let retries = 0;
 
-        while (status !== 'FINISHED' && retries < 10) {
+        while (status !== 'FINISHED' && retries < 15) {
             await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
-            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code,status&access_token=${accessToken}`;
             const statusRes = await fetch(statusUrl);
             const statusData = await statusRes.json();
 
             if (statusData.status_code) {
                 status = statusData.status_code;
+                if (status === 'ERROR') {
+                    throw new Error(statusData.status || "Image processing failed with ERROR status.");
+                }
             }
             retries++;
         }
@@ -151,20 +154,23 @@ export class InstagramClient {
         let status = 'IN_PROGRESS';
         let retries = 0;
 
-        while (status !== 'FINISHED' && retries < 10) {
+        while (status !== 'FINISHED' && retries < 15) {
             await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
-            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code,status&access_token=${accessToken}`;
             const statusRes = await fetch(statusUrl);
             const statusData = await statusRes.json();
 
             if (statusData.status_code) {
                 status = statusData.status_code;
+                if (status === 'ERROR') {
+                    throw new Error(statusData.status || "Video processing failed with ERROR status.");
+                }
             }
             retries++;
         }
 
         if (status !== 'FINISHED') {
-            throw new Error("Video processing timed out or failed");
+            throw new Error(`Video processing timed out. Last status: ${status}`);
         }
 
         // 3. Publish Container
@@ -208,26 +214,27 @@ export class InstagramClient {
 
         const creationId = createData.id;
 
-        // 2. If Video, wait for processing
-        if (mediaType === 'VIDEO') {
-            let status = 'IN_PROGRESS';
-            let retries = 0;
+        // 2. Wait for processing (for both VIDEO and IMAGE)
+        let status = 'IN_PROGRESS';
+        let retries = 0;
 
-            while (status !== 'FINISHED' && retries < 10) {
-                await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
-                const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
-                const statusRes = await fetch(statusUrl);
-                const statusData = await statusRes.json();
+        while (status !== 'FINISHED' && retries < 15) {
+            await new Promise(r => setTimeout(r, 3000)); // Wait 3 seconds
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code,status&access_token=${accessToken}`;
+            const statusRes = await fetch(statusUrl);
+            const statusData = await statusRes.json();
 
-                if (statusData.status_code) {
-                    status = statusData.status_code;
+            if (statusData.status_code) {
+                status = statusData.status_code;
+                if (status === 'ERROR') {
+                    throw new Error(statusData.status || "Story processing failed with ERROR status.");
                 }
-                retries++;
             }
+            retries++;
+        }
 
-            if (status !== 'FINISHED') {
-                throw new Error("Story video processing timed out or failed");
-            }
+        if (status !== 'FINISHED') {
+            throw new Error(`Story processing timed out. Last status: ${status}`);
         }
 
         // 3. Publish Container
@@ -269,14 +276,17 @@ export class InstagramClient {
         let status = 'IN_PROGRESS';
         let retries = 0;
 
-        while (status !== 'FINISHED' && retries < 10) {
+        while (status !== 'FINISHED' && retries < 15) {
             await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
-            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code&access_token=${accessToken}`;
+            const statusUrl = `https://graph.facebook.com/v19.0/${creationId}?fields=status_code,status&access_token=${accessToken}`;
             const statusRes = await fetch(statusUrl);
             const statusData = await statusRes.json();
 
             if (statusData.status_code) {
                 status = statusData.status_code;
+                if (status === 'ERROR') {
+                    throw new Error(statusData.status || "Carousel processing failed with ERROR status.");
+                }
             }
             retries++;
         }

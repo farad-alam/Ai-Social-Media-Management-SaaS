@@ -69,7 +69,10 @@ export async function GET(request: Request) {
                 if (!account) {
                     await prisma.post.update({
                         where: { id: post.id },
-                        data: { status: 'FAILED' } // Or keep scheduled? FAILED is better to avoid infinite loops
+                        data: { 
+                            status: 'FAILED',
+                            failedReason: 'No Instagram account connected'
+                        } // Or keep scheduled? FAILED is better to avoid infinite loops
                     });
                     results.push({ id: post.id, status: 'FAILED', reason: 'No Instagram account connected' });
                     continue;
@@ -82,7 +85,10 @@ export async function GET(request: Request) {
                 if (!imageUrl) {
                     await prisma.post.update({
                         where: { id: post.id },
-                        data: { status: 'FAILED' }
+                        data: { 
+                            status: 'FAILED',
+                            failedReason: 'No image URL'
+                        }
                     });
                     results.push({ id: post.id, status: 'FAILED', reason: 'No image URL' });
                     continue;
@@ -155,7 +161,10 @@ export async function GET(request: Request) {
                     if (!post.imageUrls || post.imageUrls.length === 0) {
                         await prisma.post.update({
                             where: { id: post.id },
-                            data: { status: 'FAILED' }
+                            data: { 
+                                status: 'FAILED',
+                                failedReason: 'No images for carousel'
+                            }
                         });
                         results.push({ id: post.id, status: 'FAILED', reason: 'No images for carousel' });
                         continue;
@@ -186,7 +195,10 @@ export async function GET(request: Request) {
                 console.error(`Failed to publish post ${post.id}`, postError);
                 await prisma.post.update({
                     where: { id: post.id },
-                    data: { status: 'FAILED' }
+                    data: { 
+                        status: 'FAILED',
+                        failedReason: postError.message
+                    }
                 });
                 results.push({ id: post.id, status: 'FAILED', error: postError.message });
             }
