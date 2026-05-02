@@ -164,6 +164,7 @@ export default function AllPostsContent() {
                                                 fill
                                                 className="object-cover transition-transform duration-300 group-hover:scale-105"
                                                 sizes="(max-width: 768px) 33vw, 20vw"
+                                                unoptimized={true}
                                             />
                                             {/* Overlay Play Icon if it's a Reel but we showing cover */}
                                             {isReel && (
@@ -240,7 +241,7 @@ export default function AllPostsContent() {
                                 <div className="bg-background">
                                     <div className="flex items-center gap-3 p-3">
                                         <div className="w-8 h-8 relative rounded-full overflow-hidden bg-muted">
-                                            <Image src={instagramProfile?.picture || "/placeholder.svg"} fill className="object-cover" alt="Profile" />
+                                            <Image src={instagramProfile?.picture || "/placeholder.svg"} fill className="object-cover" alt="Profile" unoptimized={true} />
                                         </div>
                                         <div>
                                             <p className="text-sm font-semibold text-foreground">{instagramProfile?.username || "your_username"}</p>
@@ -267,6 +268,7 @@ export default function AllPostsContent() {
                                                     fill
                                                     className="object-cover"
                                                     sizes="(max-width: 768px) 100vw, 500px"
+                                                    unoptimized={true}
                                                 />
                                                 {previewPost.imageUrls?.length > 1 && (
                                                     <>

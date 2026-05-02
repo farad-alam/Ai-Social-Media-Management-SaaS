@@ -1136,7 +1136,7 @@ export default function CreatePostPage() {
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start gap-4">
                       <div className="relative w-12 h-20 bg-black rounded overflow-hidden flex-shrink-0 border border-border">
-                        {coverImage ? <Image src={coverImage} fill alt="cover" className="object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="w-4 h-4 text-white/50" /></div>}
+                        {coverImage ? <Image src={coverImage} fill alt="cover" className="object-cover" unoptimized={true} /> : <div className="flex items-center justify-center h-full"><ImageIcon className="w-4 h-4 text-white/50" /></div>}
                       </div>
                       <div className="flex-1 space-y-2">
                         <div className="flex flex-col gap-1.5">
@@ -1276,6 +1276,7 @@ export default function CreatePostPage() {
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 33vw, 20vw"
+                        unoptimized={true}
                       />
                     )}
 

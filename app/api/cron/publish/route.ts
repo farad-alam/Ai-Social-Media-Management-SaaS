@@ -42,14 +42,11 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'No posts to publish' });
         }
 
-        const results = [];
-
-        // 2. Publish each post
-        for (const post of postsToPublish) {
+        // 2. Publish each post concurrently to prevent 10s timeout on Vercel
+        const publishPromises = postsToPublish.map(async (post) => {
             try {
                 // 3. Lock the post by setting status to PROCESSING
                 // This prevents race conditions if cron is triggered multiple times
-                // We use updateMany with 'SCHEDULED' check to ensure we only lock if it's still scheduled
                 const { count } = await prisma.post.updateMany({
                     where: {
                         id: post.id,
@@ -59,12 +56,11 @@ export async function GET(request: Request) {
                 });
 
                 if (count === 0) {
-                    // Post was already picked up by another process or status changed
                     console.log(`Post ${post.id} skipped (already processing or not scheduled)`);
-                    continue;
+                    return { id: post.id, status: 'SKIPPED', reason: 'already processing' };
                 }
 
-                const account = post.user.accounts.find(acc => acc.instagramId); // Assuming one IG account for now or we need to store which account the post is for
+                const account = post.user.accounts.find(acc => acc.instagramId);
 
                 if (!account) {
                     await prisma.post.update({
@@ -72,14 +68,11 @@ export async function GET(request: Request) {
                         data: { 
                             status: 'FAILED',
                             failedReason: 'No Instagram account connected'
-                        } // Or keep scheduled? FAILED is better to avoid infinite loops
+                        }
                     });
-                    results.push({ id: post.id, status: 'FAILED', reason: 'No Instagram account connected' });
-                    continue;
+                    return { id: post.id, status: 'FAILED', reason: 'No Instagram account connected' };
                 }
 
-                // Publish First Image (For MVP) - Carousel logic needed if multiple images
-                // Assuming single image for now based on create post logic
                 const imageUrl = post.imageUrls[0];
 
                 if (!imageUrl) {
@@ -90,8 +83,7 @@ export async function GET(request: Request) {
                             failedReason: 'No image URL'
                         }
                     });
-                    results.push({ id: post.id, status: 'FAILED', reason: 'No image URL' });
-                    continue;
+                    return { id: post.id, status: 'FAILED', reason: 'No image URL' };
                 }
 
                 if (post.mediaType === 'REEL') {
@@ -103,7 +95,6 @@ export async function GET(request: Request) {
                         post.locationId
                     );
 
-                    // Update Status
                     await prisma.post.update({
                         where: { id: post.id },
                         data: {
@@ -111,8 +102,7 @@ export async function GET(request: Request) {
                             instagramPostId: publishId
                         }
                     });
-
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'REEL' });
+                    return { id: post.id, status: 'PUBLISHED', publishId, type: 'REEL' };
 
                 } else if (post.mediaType === 'IMAGE') {
                     const publishId = await InstagramClient.publishImage(
@@ -124,7 +114,6 @@ export async function GET(request: Request) {
                         post.userTags as any[]
                     );
 
-                    // Update Status
                     await prisma.post.update({
                         where: { id: post.id },
                         data: {
@@ -132,11 +121,8 @@ export async function GET(request: Request) {
                             instagramPostId: publishId
                         }
                     });
-
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'IMAGE' });
+                    return { id: post.id, status: 'PUBLISHED', publishId, type: 'IMAGE' };
                 } else if (post.mediaType === 'STORY') {
-                    // Detect if story is video or image based on extension or some other flag?
-                    // For now, let's assume if it ends in .mp4 or .mov it is video, else image.
                     const isVideo = imageUrl.toLowerCase().match(/\.(mp4|mov|avi|wmv|flv|webm)$/);
 
                     const publishId = await InstagramClient.publishStoryMedia(
@@ -146,7 +132,6 @@ export async function GET(request: Request) {
                         account.accessToken
                     );
 
-                    // Update Status
                     await prisma.post.update({
                         where: { id: post.id },
                         data: {
@@ -154,10 +139,8 @@ export async function GET(request: Request) {
                             instagramPostId: publishId
                         }
                     });
-
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'STORY' });
+                    return { id: post.id, status: 'PUBLISHED', publishId, type: 'STORY' };
                 } else if (post.mediaType === 'CAROUSEL') {
-                    // Check if we have multiple images
                     if (!post.imageUrls || post.imageUrls.length === 0) {
                         await prisma.post.update({
                             where: { id: post.id },
@@ -166,8 +149,7 @@ export async function GET(request: Request) {
                                 failedReason: 'No images for carousel'
                             }
                         });
-                        results.push({ id: post.id, status: 'FAILED', reason: 'No images for carousel' });
-                        continue;
+                        return { id: post.id, status: 'FAILED', reason: 'No images for carousel' };
                     }
 
                     const publishId = await InstagramClient.publishCarousel(
@@ -179,7 +161,6 @@ export async function GET(request: Request) {
                         post.userTags as any[]
                     );
 
-                    // Update Status
                     await prisma.post.update({
                         where: { id: post.id },
                         data: {
@@ -187,9 +168,10 @@ export async function GET(request: Request) {
                             instagramPostId: publishId
                         }
                     });
-
-                    results.push({ id: post.id, status: 'PUBLISHED', publishId, type: 'CAROUSEL' });
+                    return { id: post.id, status: 'PUBLISHED', publishId, type: 'CAROUSEL' };
                 }
+
+                return { id: post.id, status: 'UNKNOWN' };
 
             } catch (postError: any) {
                 console.error(`Failed to publish post ${post.id}`, postError);
@@ -200,9 +182,14 @@ export async function GET(request: Request) {
                         failedReason: postError.message
                     }
                 });
-                results.push({ id: post.id, status: 'FAILED', error: postError.message });
+                return { id: post.id, status: 'FAILED', error: postError.message };
             }
-        }
+        });
+
+        const settledResults = await Promise.allSettled(publishPromises);
+        
+        // Extract the values from fulfilled promises to maintain the API response structure
+        const results = settledResults.map(res => res.status === 'fulfilled' ? res.value : { status: 'ERROR', reason: 'Promise rejected' });
 
         return NextResponse.json({ processed: postsToPublish.length, results });
 
