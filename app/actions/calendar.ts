@@ -107,9 +107,44 @@ export async function updateScheduledPost(
         })
 
         revalidatePath('/dashboard')
+        revalidatePath('/content-calendar')
         return { success: true }
     } catch (error) {
         console.error('Update Post Error:', error)
         return { error: 'Failed to update post' }
+    }
+}
+
+export async function getCalendarPosts() {
+    const { userId } = await auth()
+
+    if (!userId) {
+        return { error: 'Unauthorized' }
+    }
+
+    try {
+        const posts = await prisma.post.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                caption: true,
+                scheduledAt: true,
+                status: true,
+                mediaType: true,
+                imageUrls: true,
+            }
+        })
+
+        return {
+            posts: posts.map(p => ({
+                ...p,
+                scheduledFor: p.scheduledAt ? p.scheduledAt.toISOString() : 'Not scheduled',
+                image: p.imageUrls[0] || null
+            }))
+        }
+    } catch (error) {
+        console.error('Calendar Posts Error:', error)
+        return { error: 'Failed to fetch calendar posts' }
     }
 }

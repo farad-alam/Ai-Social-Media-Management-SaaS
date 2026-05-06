@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/dashboard/calendar-view"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getDashboardData } from "@/app/actions/dashboard"
+import { getCalendarPosts } from "@/app/actions/calendar"
 import { CalendarDays } from "lucide-react"
 
 export default function ContentCalendarPage() {
@@ -15,7 +15,7 @@ export default function ContentCalendarPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await getDashboardData()
+        const data = await getCalendarPosts()
         if (data.posts) {
           setPosts(data.posts)
         }
