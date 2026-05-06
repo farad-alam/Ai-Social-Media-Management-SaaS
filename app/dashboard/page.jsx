@@ -3,17 +3,15 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { CalendarView } from "@/components/dashboard/calendar-view"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, MessageCircle, TrendingUp, Clock, CheckCircle2, FileEdit, Grid3X3 } from "lucide-react"
+import { Heart, MessageCircle, TrendingUp, Clock, CheckCircle2, FileEdit, Grid3X3, CalendarDays } from "lucide-react"
 import { getDashboardData } from "@/app/actions/dashboard"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [posts, setPosts] = useState([])
-  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [stats, setStats] = useState({
     totalPosts: 0,
     published: 0,
@@ -38,7 +36,7 @@ export default function DashboardPage() {
       }
     }
     loadData()
-  }, [refreshTrigger])
+  }, [])
 
   return (
     <DashboardLayout>
@@ -104,21 +102,23 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Calendar Section */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-semibold text-card-foreground">Content Calendar</h2>
-            <Link href="/all-posts">
-              <Button variant="outline" className="border-border text-foreground bg-transparent">
-                View All Posts
-              </Button>
-            </Link>
+
+        {/* Content Calendar CTA */}
+        <div className="flex items-center justify-between p-5 rounded-xl border border-border bg-card hover:border-primary/50 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <CalendarDays className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Content Calendar</p>
+              <p className="text-xs text-muted-foreground">View your full posting schedule</p>
+            </div>
           </div>
-          {loading ? (
-            <Skeleton className="h-[600px] w-full rounded-lg" />
-          ) : (
-            <CalendarView posts={posts} onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
-          )}
+          <Link href="/content-calendar">
+            <Button variant="outline" className="border-border text-foreground bg-transparent">
+              Open Calendar
+            </Button>
+          </Link>
         </div>
       </div>
     </DashboardLayout>
