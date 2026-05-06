@@ -384,7 +384,7 @@ export function CalendarView({ posts = [], onRefresh }) {
 
             {/* Edit Modal */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Scheduled Post</DialogTitle>
                         <DialogDescription>
