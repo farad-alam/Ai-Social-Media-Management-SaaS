@@ -689,15 +689,15 @@ export default function CreatePostPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex items-center justify-center min-h-[calc(100vh-100px)] p-4">
-        <Card className="flex flex-col lg:flex-row w-full max-w-5xl h-[85vh] overflow-hidden bg-background border-border shadow-2xl rounded-xl">
+      <div className="py-6 px-4">
+        <Card className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto overflow-hidden bg-background border-border shadow-2xl rounded-2xl">
 
           {/* LEFT COLUMN: Media Preview / Upload */}
-          <div className="lg:w-[60%] flex flex-col bg-black/5 relative justify-center items-center border-r border-border overflow-hidden">
+          <div className="lg:w-[55%] flex flex-col bg-black/5 relative border-r border-border justify-center items-center" style={{minHeight: '80vh'}}>
 
             {/* Empty State / Upload Trigger */}
             {(!uploadedImage && carouselItems.length === 0) ? (
-              <div className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
+              <div className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300 w-full h-full">
                 <div className="relative mb-6">
                   <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping opacity-20" />
                   <div className="relative bg-background p-6 rounded-full shadow-lg border border-border">
@@ -739,7 +739,7 @@ export default function CreatePostPage() {
               </div>
             ) : (
               /* Media Preview State */
-              <div className="relative w-full h-full flex items-center justify-center bg-zinc-950">
+              <div className="relative w-full flex items-center justify-center bg-zinc-950" style={{minHeight: '80vh'}}>
                 {/* Media Display */}
                 {mediaType === 'CAROUSEL' ? (
                   <div className="relative w-full h-full flex items-center justify-center">
@@ -836,7 +836,7 @@ export default function CreatePostPage() {
           </div>
 
           {/* RIGHT COLUMN: Details & Settings */}
-          <div className="lg:w-[40%] flex flex-col bg-background h-full">
+          <div className="lg:w-[45%] flex flex-col bg-background">
 
             {/* Header / Top Bar */}
             <div className="h-16 border-b border-border flex items-center justify-between px-4 flex-shrink-0">
@@ -858,11 +858,11 @@ export default function CreatePostPage() {
               </div>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 custom-scrollbar">
+            {/* All Settings - No internal scroll, everything visible */}
+            <div className="px-6 py-6 space-y-8">
 
               {/* 1. Post Type Selector */}
-              <div className="bg-muted/50 p-1 rounded-lg grid grid-cols-4 gap-1">
+              <div className="bg-muted/50 p-1.5 rounded-xl grid grid-cols-4 gap-1.5">
                 {['IMAGE', 'REEL', 'STORY', 'CAROUSEL'].map((type) => (
                   <button
                     key={type}
@@ -875,8 +875,8 @@ export default function CreatePostPage() {
                       if (mediaType === 'CAROUSEL' && type !== 'CAROUSEL') setCarouselItems([])
                     }}
                     className={cn(
-                      "flex flex-col items-center justify-center py-2 rounded-md text-[10px] font-medium transition-all gap-1",
-                      mediaType === type ? "bg-background shadow text-foreground" : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
+                      "flex flex-col items-center justify-center py-3 rounded-lg text-xs font-medium transition-all gap-1.5",
+                      mediaType === type ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                     )}
                   >
                     {type === 'IMAGE' && <ImageIcon className="w-4 h-4" />}
@@ -889,14 +889,14 @@ export default function CreatePostPage() {
               </div>
 
               {/* 2. Caption Area */}
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex items-end justify-between gap-2">
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-end justify-between gap-3">
                     <div className="flex-1">
-                      <Label className="text-xs font-medium opacity-70 mb-1.5 block">Write topic to generate caption</Label>
+                      <Label className="text-sm font-medium mb-2 block">Topic for AI caption</Label>
                       <Input
                         placeholder="e.g. Summer sale announcement..."
-                        className="h-8 text-xs bg-muted/30"
+                        className="h-10 text-sm bg-muted/30"
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
                       />
@@ -904,27 +904,26 @@ export default function CreatePostPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary"
+                      className="h-10 text-sm border-primary/20 hover:bg-primary/5 hover:text-primary px-4"
                       onClick={handleGenerateCaption}
                       disabled={isGeneratingAI}
                     >
-                      <Sparkles className="w-3 h-3 mr-1" />
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                       {isGeneratingAI ? "Writing..." : "Generate"}
                     </Button>
                   </div>
                 </div>
-                <div className="relative mt-2">
+                <div className="relative">
                   <Textarea
                     placeholder="Write a caption..."
                     value={caption}
                     onChange={e => setCaption(e.target.value)}
-                    className="min-h-[140px] resize-none border-0 focus-visible:ring-0 bg-transparent p-0 text-base placeholder:text-muted-foreground/40 leading-relaxed"
+                    className="min-h-[160px] resize-none border-border focus-visible:ring-1 bg-muted/20 text-sm placeholder:text-muted-foreground/40 leading-relaxed rounded-xl p-4"
                   />
-                  <div className="absolute bottom-0 right-0 flex items-center gap-2">
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground">{caption.length}/2200</span>
                   </div>
                 </div>
-
               </div>
 
               {/* Tagging and Location */}
@@ -998,31 +997,21 @@ export default function CreatePostPage() {
                 )}
               </div>
 
-              <div className="h-px bg-border my-2" />
+              <div className="border-t border-border my-1" />
 
-              {/* 3. Settings Accordions */}
-              <div className="space-y-0 divide-y divide-border">
-                {/* Schedule Accordion */}
-                <div className="py-2">
-                  <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="flex w-full items-center justify-between py-2 text-sm font-medium hover:text-primary transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>Schedule for later</span>
-                    </div>
-                    {isCalendarOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  {isCalendarOpen && (
-                    <div className="pt-4 pb-2 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Date</Label>
-                          <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-xs h-9", !date && "text-muted-foreground")}>
-                                <CalendarIcon className="mr-2 h-3 w-3" />
-                                {date ? format(date, "PPP") : "Pick date"}
-                              </Button>
-                            </PopoverTrigger>
+              {/* 3. Schedule Section — always visible, no accordion */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium flex items-center gap-2"><Calendar className="w-4 h-4" />Schedule for later</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Date</Label>
+                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-sm h-10", !date && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date ? format(date, "PPP") : "Pick date"}
+                        </Button>
+                      </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
                               <CalendarPicker
                                 mode="single"
@@ -1034,12 +1023,11 @@ export default function CreatePostPage() {
                                 disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
                                 initialFocus
                               />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Time</Label>
-                          <div className="flex items-center gap-1">
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Time</Label>
+                    <div className="flex items-center gap-1.5">
                             <Select value={scheduleHour} onValueChange={setScheduleHour}>
                               <SelectTrigger className="h-9 text-xs w-[60px] bg-background border-border px-2">
                                 <SelectValue placeholder="Hr" />
@@ -1071,15 +1059,15 @@ export default function CreatePostPage() {
                                 <SelectItem value="PM">PM</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Timezone</Label>
-                        <Select value={timezone} onValueChange={setTimezone}>
-                          <SelectTrigger className="h-9 text-xs w-full bg-background border-border">
-                            <SelectValue placeholder="Select timezone" />
-                          </SelectTrigger>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Timezone</Label>
+                  <Select value={timezone} onValueChange={setTimezone}>
+                    <SelectTrigger className="h-10 text-sm w-full bg-background border-border">
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="America/New_York">Eastern Time (US & Canada)</SelectItem>
                             <SelectItem value="America/Chicago">Central Time (US & Canada)</SelectItem>
@@ -1094,33 +1082,19 @@ export default function CreatePostPage() {
                             <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
                             <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
                           </SelectContent>
-                        </Select>
-                      </div>
-                      {date && scheduleTime && (
-                        <p className="text-xs text-muted-foreground bg-primary/10 p-2 rounded flex items-center gap-2">
-                          <Clock className="w-3 h-3 text-primary" />
-                          Will post on {format(date, "MMM d")} at {scheduleTime} ({timezone})
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  </Select>
                 </div>
-
-                {/* Advanced Settings Checkbox / Accordion */}
-                <div className="py-2">
-                  <div className="flex items-center justify-between py-2 text-sm text-muted-foreground cursor-not-allowed">
-                    <div className="flex items-center gap-2">
-                      <Settings className="w-4 h-4" />
-                      <span>Advanced Settings</span>
-                    </div>
-                    <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">Coming Soon</span>
-                  </div>
-                </div>
+                {date && scheduleTime && (
+                  <p className="text-xs text-muted-foreground bg-primary/10 p-3 rounded-lg flex items-center gap-2">
+                    <Clock className="w-3.5 h-3.5 text-primary" />
+                    Will post on {format(date, "MMM d")} at {scheduleTime} ({timezone})
+                  </p>
+                )}
               </div>
 
               {/* Reel Cover specific */}
               {mediaType === 'REEL' && uploadedImage && (
-                <div className="bg-muted/30 p-3 rounded-lg border border-border mt-4">
+                <div className="bg-muted/30 p-4 rounded-xl border border-border">
                   <Label className="text-xs font-semibold mb-2 block">Cover Photo</Label>
 
                   {/* Hidden Video for Frame Extraction */}
@@ -1170,7 +1144,7 @@ export default function CreatePostPage() {
             </div>
 
             {/* Footer Actions */}
-            <div className="flex items-center justify-end gap-2 p-4 border-t border-border mt-auto bg-background/95 backdrop-blur z-10">
+            <div className="flex items-center justify-end gap-3 px-6 py-5 border-t border-border mt-auto bg-background/95 backdrop-blur z-10">
               <Button
                 variant="outline"
                 onClick={handleSaveDraft}
@@ -1189,7 +1163,7 @@ export default function CreatePostPage() {
                   }
                 }}
                 disabled={isAnySubmitting || (!uploadedImage && carouselItems.length === 0)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[100px]"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 min-w-[130px] h-10"
               >
                 {isScheduling ? "Scheduling..." : (date && scheduleTime && scheduleTime !== "") ? "Schedule" : "Publish Now"}
               </Button>
@@ -1197,8 +1171,8 @@ export default function CreatePostPage() {
 
           </div >
 
-        </Card >
-      </div >
+        </Card>
+      </div>
 
       {/* Media Library Modal (Keep as is) */}
       < Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen} >
