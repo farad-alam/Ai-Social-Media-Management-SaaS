@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getDashboardData } from "@/app/actions/dashboard"
+import { AppDataProvider, useAppData } from "@/contexts/app-data-context"
 import {
   Clock, CheckCircle2, FileEdit, Grid3X3, CalendarDays,
   Instagram, AlertTriangle, Film, ImageIcon, Layers,
@@ -52,29 +52,19 @@ function StatCard({ label, value, icon, colorClass, subtext, loading }) {
 }
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ totalPosts: 0, published: 0, scheduled: 0, drafts: 0, failed: 0 })
-  const [upcomingPosts, setUpcomingPosts] = useState([])
-  const [account, setAccount] = useState(null)
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const data = await getDashboardData()
-        if (data.stats) setStats(data.stats)
-        if (data.upcomingPosts) setUpcomingPosts(data.upcomingPosts)
-        if (data.account) setAccount(data.account)
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadData()
-  }, [])
-
   return (
     <DashboardLayout>
+      <AppDataProvider>
+        <DashboardContent />
+      </AppDataProvider>
+    </DashboardLayout>
+  )
+}
+
+function DashboardContent() {
+  const { stats, upcomingPosts, account, loading } = useAppData()
+
+  return (
       <div className="space-y-8 max-w-5xl">
 
         {/* Header */}
@@ -272,6 +262,5 @@ export default function DashboardPage() {
         </section>
 
       </div>
-    </DashboardLayout>
   )
 }

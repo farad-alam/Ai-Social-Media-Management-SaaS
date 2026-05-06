@@ -16,7 +16,8 @@ import { useToast } from "@/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
-import { getInstagramStatus, searchInstagramLocations } from "@/app/actions/instagram"
+import { searchInstagramLocations } from "@/app/actions/instagram"
+import { AppDataProvider, useAppData } from "@/contexts/app-data-context"
 import { generateCaption } from "@/app/actions/ai"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -53,8 +54,19 @@ const TIME_OPTIONS = Array.from({ length: 48 }).map((_, i) => {
 })
 
 export default function CreatePostPage() {
+  return (
+    <DashboardLayout>
+      <AppDataProvider>
+        <CreatePostContent />
+      </AppDataProvider>
+    </DashboardLayout>
+  )
+}
+
+function CreatePostContent() {
   const { toast } = useToast()
   const router = useRouter()
+  const { account, refresh } = useAppData()
   const [caption, setCaption] = useState("")
   const [topic, setTopic] = useState("")
   const [locationQuery, setLocationQuery] = useState("")
@@ -154,20 +166,14 @@ export default function CreatePostPage() {
     })
     setFfmpegLoaded(true)
 
-    // Load Instagram Profile
-    try {
-      const status = await getInstagramStatus()
-      if (status.isConnected) {
-        setInstagramProfile({
-          username: status.username,
-          picture: status.picture
-        })
-      }
-    } catch (error) {
-      console.error("Failed to load Instagram profile", error)
-    } finally {
-      setLoadingProfile(false)
+    // Load Instagram Profile from context
+    if (account?.isConnected) {
+      setInstagramProfile({
+        username: account.username,
+        picture: account.picture
+      })
     }
+    setLoadingProfile(false)
   }
 
   useEffect(() => {
@@ -620,6 +626,7 @@ export default function CreatePostPage() {
       setLocationQuery("")
       setUserTags([])
       setTagInput("")
+      refresh() // Sync all pages with the new post
     }
   }
 
@@ -688,7 +695,7 @@ export default function CreatePostPage() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <div className="py-6 px-4">
         <Card className="flex flex-col lg:flex-row w-full max-w-7xl mx-auto overflow-hidden bg-background border-border shadow-2xl rounded-2xl">
 
@@ -1269,6 +1276,6 @@ export default function CreatePostPage() {
           </div>
         </DialogContent>
       </Dialog >
-    </DashboardLayout >
+    </>
   )
 }

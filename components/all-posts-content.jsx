@@ -2,48 +2,26 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Clock, Heart, MessageCircle, Trash2, Layers, ChevronLeft, ChevronRight } from "lucide-react"
-import { getDashboardData } from "@/app/actions/dashboard"
 import { deletePost } from "@/app/actions/post"
-import { getInstagramStatus } from "@/app/actions/instagram"
+import { useAppData } from "@/contexts/app-data-context"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AllPostsContent() {
     const { toast } = useToast()
-    const [loading, setLoading] = useState(true)
-    const [posts, setPosts] = useState([])
-    const [instagramProfile, setInstagramProfile] = useState(null)
-    const [refreshTrigger, setRefreshTrigger] = useState(0)
+    const { posts, account, loading, refresh } = useAppData()
+    const instagramProfile = account?.isConnected ? account : null
     const [previewPost, setPreviewPost] = useState(null)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
     const [deletePostId, setDeletePostId] = useState(null)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [currentSlide, setCurrentSlide] = useState(0)
-
-    useEffect(() => {
-        async function loadData() {
-            try {
-                const [data, igStatus] = await Promise.all([
-                    getDashboardData(),
-                    getInstagramStatus()
-                ])
-                if (data.posts) setPosts(data.posts)
-                if (igStatus?.isConnected) setInstagramProfile(igStatus)
-            } catch (e) {
-                console.error(e)
-            } finally {
-                setLoading(false)
-            }
-        }
-        loadData()
-    }, [refreshTrigger])
 
     const handlePostClick = (post) => {
         setPreviewPost(post)
@@ -100,12 +78,12 @@ export default function AllPostsContent() {
             })
             setIsDeleteDialogOpen(false)
             setDeletePostId(null)
-            setRefreshTrigger(prev => prev + 1)
+            refresh()
         }
     }
 
     return (
-        <DashboardLayout>
+        <>
             <div className="space-y-6">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground mb-2">All Posts</h1>
@@ -364,6 +342,6 @@ export default function AllPostsContent() {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-        </DashboardLayout >
+        </>
     )
 }
