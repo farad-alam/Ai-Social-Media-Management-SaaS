@@ -18,21 +18,17 @@ export async function GET(request: Request) {
     try {
         const now = new Date();
 
-        // 1. Find scheduled posts that are due
-        // Since this is a global cron job, we check all users' scheduled posts.
-        const whereClause: any = {
-            status: 'SCHEDULED',
-            scheduledAt: {
-                lte: now
-            }
-        };
-
+        // Only pick up posts that are explicitly SCHEDULED and past their scheduled time.
+        // FAILED, DRAFT, PROCESSING, and PUBLISHED posts are intentionally excluded.
         const postsToPublish = await prisma.post.findMany({
-            where: whereClause,
+            where: {
+                status: 'SCHEDULED',
+                scheduledAt: { lte: now }
+            },
             include: {
                 user: {
                     include: {
-                        accounts: true // We need the token
+                        accounts: true
                     }
                 }
             }
