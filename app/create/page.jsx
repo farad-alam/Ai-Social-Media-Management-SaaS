@@ -1023,6 +1023,7 @@ export default function CreatePostPage() {
                                 disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
                                 initialFocus
                               />
+                            </PopoverContent>
                     </Popover>
                   </div>
                   <div className="space-y-2">
