@@ -30,7 +30,7 @@ export async function getPreviewData() {
             try {
                 // Need to get current page token to make sure it's valid.
                 // We use the stored long-lived token.
-                const igPosts = await InstagramClient.getInstagramPosts(account.instagramId, account.accessToken)
+                const igPosts = await InstagramClient.getInstagramPosts(account.instagramId, account.accessToken, 20)
 
                 // Map to unified format
                 livePosts = igPosts.map((post: any) => ({
