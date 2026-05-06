@@ -11,48 +11,56 @@ export async function getDashboardData() {
     }
 
     try {
-        const posts = await prisma.post.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: 10
-        })
-
-        const totalPosts = await prisma.post.count({ where: { userId } })
-        const scheduledPostsCount = await prisma.post.count({
-            where: {
-                userId,
-                status: 'SCHEDULED'
-            }
-        })
-        const publishedPostsCount = await prisma.post.count({
-            where: {
-                userId,
-                status: 'PUBLISHED'
-            }
-        })
-        const draftPostsCount = await prisma.post.count({
-            where: {
-                userId,
-                status: 'DRAFT'
-            }
-        })
-
-        // Mock analytics for now as we don't have Instagram API connected yet
-        const engagement = "0"
-        const comments = "0"
+        const [
+            totalPosts,
+            scheduledPostsCount,
+            publishedPostsCount,
+            draftPostsCount,
+            failedPostsCount,
+            upcomingPosts,
+            account
+        ] = await Promise.all([
+            prisma.post.count({ where: { userId } }),
+            prisma.post.count({ where: { userId, status: 'SCHEDULED' } }),
+            prisma.post.count({ where: { userId, status: 'PUBLISHED' } }),
+            prisma.post.count({ where: { userId, status: 'DRAFT' } }),
+            prisma.post.count({ where: { userId, status: 'FAILED' } }),
+            // Next 5 upcoming scheduled posts
+            prisma.post.findMany({
+                where: {
+                    userId,
+                    status: 'SCHEDULED',
+                    scheduledAt: { gte: new Date() }
+                },
+                orderBy: { scheduledAt: 'asc' },
+                take: 5,
+                select: { id: true, caption: true, scheduledAt: true, mediaType: true, imageUrls: true }
+            }),
+            prisma.account.findFirst({
+                where: { userId },
+                select: { username: true, picture: true, instagramId: true, updatedAt: true }
+            })
+        ])
 
         return {
             stats: {
                 totalPosts,
                 published: publishedPostsCount,
                 scheduled: scheduledPostsCount,
-                drafts: draftPostsCount
+                drafts: draftPostsCount,
+                failed: failedPostsCount,
             },
-            posts: posts.map(p => ({
+            upcomingPosts: upcomingPosts.map(p => ({
                 ...p,
-                scheduledFor: p.scheduledAt ? p.scheduledAt.toLocaleString() : 'Not scheduled',
+                scheduledAt: p.scheduledAt?.toISOString() ?? null,
                 image: p.imageUrls[0] || null
-            }))
+            })),
+            account: account ? {
+                username: account.username,
+                picture: account.picture,
+                instagramId: account.instagramId,
+                connectedSince: account.updatedAt?.toISOString() ?? null
+            } : null
         }
     } catch (error) {
         console.error('Dashboard Data Error:', error)
