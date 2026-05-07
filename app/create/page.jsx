@@ -105,8 +105,6 @@ function CreatePostContent() {
   const isAnySubmitting = isScheduling || isSavingDraft || isGeneratingAI
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [mediaLibrary, setMediaLibrary] = useState([])
-  const [instagramProfile, setInstagramProfile] = useState(null)
-  const [loadingProfile, setLoadingProfile] = useState(true)
 
   // New State for Reels
   const [mediaType, setMediaType] = useState("IMAGE") // IMAGE, REEL, STORY, CAROUSEL
@@ -165,15 +163,6 @@ function CreatePostContent() {
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
     })
     setFfmpegLoaded(true)
-
-    // Load Instagram Profile from context
-    if (account?.isConnected) {
-      setInstagramProfile({
-        username: account.username,
-        picture: account.picture
-      })
-    }
-    setLoadingProfile(false)
   }
 
   useEffect(() => {
@@ -631,7 +620,7 @@ function CreatePostContent() {
   }
 
   const checkConnection = () => {
-    if (!instagramProfile) {
+    if (!account?.isConnected) {
       toast({
         title: "Instagram Not Connected",
         description: "Please connect your Instagram account first.",
@@ -849,10 +838,10 @@ function CreatePostContent() {
             <div className="h-16 border-b border-border flex items-center justify-between px-4 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 relative rounded-full bg-muted overflow-hidden border border-border">
-                  <Image src={instagramProfile?.picture || "/placeholder.svg"} fill className="object-cover" alt="Profile" />
+                  <Image src={account?.picture || "/placeholder.svg"} fill className="object-cover" alt="Profile" />
                 </div>
-                <span className="font-semibold text-sm">{instagramProfile?.username || "Not Connected"}</span>
-                {!instagramProfile && (
+                <span className="font-semibold text-sm">{account?.username || "Not Connected"}</span>
+                {!account?.isConnected && (
                   <Button
                     variant="outline"
                     size="sm"
