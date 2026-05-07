@@ -50,6 +50,7 @@ export async function getAppData() {
             scheduledAt: p.scheduledAt?.toISOString() ?? null,
             createdAt: p.createdAt.toISOString(),
             image: p.imageUrls[0] || null,
+            imageUrls: p.imageUrls || [],
         }))
 
         const serializedAccount = account ? {

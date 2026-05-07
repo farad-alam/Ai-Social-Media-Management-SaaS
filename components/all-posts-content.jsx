@@ -136,14 +136,22 @@ export default function AllPostsContent() {
                                         />
                                     ) : (
                                         <div className="relative w-full h-full">
-                                            <Image
-                                                src={(hasCover ? post.imageUrls?.[1] : post.imageUrls?.[0]) || "/placeholder.svg"}
-                                                alt="Post preview"
-                                                fill
-                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                                sizes="(max-width: 768px) 33vw, 20vw"
-                                                unoptimized={true}
-                                            />
+                                            {(() => {
+                                                const src = (hasCover ? post.imageUrls?.[1] : post.imageUrls?.[0]) || "/placeholder.svg"
+                                                if (src.endsWith('.mp4')) {
+                                                    return <video src={src} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" muted playsInline />
+                                                }
+                                                return (
+                                                    <Image
+                                                        src={src}
+                                                        alt="Post preview"
+                                                        fill
+                                                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                        sizes="(max-width: 768px) 33vw, 20vw"
+                                                        unoptimized={true}
+                                                    />
+                                                )
+                                            })()}
                                             {/* Overlay Play Icon if it's a Reel but we showing cover */}
                                             {isReel && (
                                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity">
@@ -240,14 +248,22 @@ export default function AllPostsContent() {
                                             </video>
                                         ) : (
                                             <>
-                                                <Image
-                                                    src={previewPost.imageUrls?.[currentSlide] || "/placeholder.svg"}
-                                                    alt="Post preview"
-                                                    fill
-                                                    className="object-cover"
-                                                    sizes="(max-width: 768px) 100vw, 500px"
-                                                    unoptimized={true}
-                                                />
+                                                {(() => {
+                                                    const src = previewPost.imageUrls?.[currentSlide] || "/placeholder.svg"
+                                                    if (src.endsWith('.mp4')) {
+                                                        return <video src={src} className="w-full h-full object-contain" controls playsInline />
+                                                    }
+                                                    return (
+                                                        <Image
+                                                            src={src}
+                                                            alt="Post preview"
+                                                            fill
+                                                            className="object-contain"
+                                                            sizes="(max-width: 768px) 100vw, 500px"
+                                                            unoptimized={true}
+                                                        />
+                                                    )
+                                                })()}
                                                 {previewPost.imageUrls?.length > 1 && (
                                                     <>
                                                         {currentSlide > 0 && (

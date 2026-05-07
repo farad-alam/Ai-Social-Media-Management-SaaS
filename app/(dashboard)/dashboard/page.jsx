@@ -149,7 +149,11 @@ export default function DashboardPage() {
                 {/* Thumbnail */}
                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative">
                   {post.image ? (
-                    <Image src={post.image} alt="thumb" fill className="object-cover" unoptimized />
+                    post.image.endsWith('.mp4') ? (
+                      <video src={post.image} className="w-full h-full object-cover" muted playsInline />
+                    ) : (
+                      <Image src={post.image} alt="thumb" fill className="object-cover" unoptimized />
+                    )
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       {mediaTypeIcon(post.mediaType)}
