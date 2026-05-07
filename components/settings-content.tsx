@@ -2,7 +2,6 @@
 "use client"
 
 import { useState } from "react"
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,7 +46,7 @@ export default function SettingsClient({ instagramStatus }) {
     }
 
     return (
-        <DashboardLayout>
+        <>
             <div className="max-w-4xl space-y-6">
                 {/* Header */}
                 <div>
@@ -282,6 +281,6 @@ export default function SettingsClient({ instagramStatus }) {
                     <Button variant="destructive">Delete Account</Button>
                 </Card>
             </div>
-        </DashboardLayout>
+        </>
     )
 }

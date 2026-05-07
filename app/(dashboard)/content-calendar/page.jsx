@@ -1,22 +1,11 @@
 "use client"
 
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { CalendarView } from "@/components/dashboard/calendar-view"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AppDataProvider, useAppData } from "@/contexts/app-data-context"
+import { useAppData } from "@/contexts/app-data-context"
 import { CalendarDays } from "lucide-react"
 
 export default function ContentCalendarPage() {
-  return (
-    <DashboardLayout>
-      <AppDataProvider>
-        <CalendarContent />
-      </AppDataProvider>
-    </DashboardLayout>
-  )
-}
-
-function CalendarContent() {
   const { posts, loading, refresh } = useAppData()
 
   return (

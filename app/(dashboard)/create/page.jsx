@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,7 +16,7 @@ import { ToastAction } from "@/components/ui/toast"
 import { supabase } from "@/lib/supabase"
 import { createPost, getMediaLibrary } from "@/app/actions/post"
 import { searchInstagramLocations } from "@/app/actions/instagram"
-import { AppDataProvider, useAppData } from "@/contexts/app-data-context"
+import { useAppData } from "@/contexts/app-data-context"
 import { generateCaption } from "@/app/actions/ai"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -54,16 +53,6 @@ const TIME_OPTIONS = Array.from({ length: 48 }).map((_, i) => {
 })
 
 export default function CreatePostPage() {
-  return (
-    <DashboardLayout>
-      <AppDataProvider>
-        <CreatePostContent />
-      </AppDataProvider>
-    </DashboardLayout>
-  )
-}
-
-function CreatePostContent() {
   const { toast } = useToast()
   const router = useRouter()
   const { account, refresh } = useAppData()
